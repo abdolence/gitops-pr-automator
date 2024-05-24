@@ -1,0 +1,21 @@
+pullRequest:
+  title: "GitOps PR for release of ({{ date }})"
+  githubLabel: gitops-test
+  additionalLabels:
+    - gitops
+  enableAutoMerge: true
+  pullRequestComment: "This PR was automatically created by the GitOps PR Automator. Please review the changes and merge if they look good."
+  includePullRequestsHistory: true
+  author:
+    username: abdolence
+    email: me@abdolence.dev
+releaseFiles:
+  - path: "**/*.values.yaml"
+    replaceRegex: "tag: [a-f0-9]{40}"
+sourceRepos:
+  - repo: abdolence/hello-world
+    branch: master
+    releaseFiles:
+      - path: "**/*.values.yaml"
+        ignore: "node_modules/**"
+        regex: "(?<=(tag: ))[a-f0-9]{40}(?=(.*))"

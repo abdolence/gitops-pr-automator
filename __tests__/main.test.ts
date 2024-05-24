@@ -37,8 +37,8 @@ describe('action', () => {
     // Set the action's inputs as return values from core.getInput()
     getInputMock.mockImplementation(name => {
       switch (name) {
-        case 'milliseconds':
-          return '500'
+        case 'github-token':
+          return process.env.GITHUB_TOKEN || process.env.TEST_GITHUB_TOKEN || 'mock-github-token';
         default:
           return ''
       }
