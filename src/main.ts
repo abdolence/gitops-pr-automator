@@ -1,5 +1,10 @@
 import * as core from '@actions/core'
-import { wait } from './wait'
+import * as github from '@actions/github'
+import * as z from 'zod'
+
+import { loadConfigFromYaml } from './config'
+import { findChangesInSourceRepo, FoundChanges } from './changes'
+import { createPullRequest } from './pull-request'
 
 /**
  * The main function for the action.
@@ -7,20 +12,58 @@ import { wait } from './wait'
  */
 export async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
+    core.info(`Running GitOps PR Automator ...`)
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
+    const configPath: string =
+      core.getInput('config-path') ||
+      '.github/gitops/gitops-pr-automator.config.yaml'
+    core.info(`Loading configuration from ${configPath}`)
+    const config = await loadConfigFromYaml(configPath)
 
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
+    const githubToken: string = core.getInput('github-token')
+    if (!githubToken) {
+      core.setFailed(
+        'GitHub token not provided. Please specify the `github-token` input.'
+      )
+      return
+    }
+
+    const octokit = github.getOctokit(githubToken)
+
+    const allRepoChanges: FoundChanges[] = []
+
+    for (const sourceRepo of config.sourceRepos) {
+      const repoChanges = await findChangesInSourceRepo(sourceRepo, octokit)
+      if (repoChanges) {
+        allRepoChanges.push(repoChanges)
+      }
+    }
+
+    if (allRepoChanges.length === 0) {
+      core.info('No changes found in any of the source repos')
+    } else {
+      core.info(
+        `Found changes in ${allRepoChanges.length} source repos. Creating a new PR`
+      )
+      await createPullRequest(config, allRepoChanges, octokit)
+    }
+
+    // Log the current timestamp
     core.debug(new Date().toTimeString())
 
     // Set outputs for other workflow steps to use
     core.setOutput('time', new Date().toTimeString())
   } catch (error) {
     // Fail the workflow run if an error occurs
-    if (error instanceof Error) core.setFailed(error.message)
+    if (error instanceof z.ZodError) {
+      console.error(error.errors) // Detailed validation errors
+      core.setFailed(error.errors.toString())
+    } else if (error instanceof Error) {
+      console.error(error.message)
+      core.setFailed(error.message)
+    } else {
+      console.error(error)
+      core.setFailed('An unexpected error occurred')
+    }
   }
 }

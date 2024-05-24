@@ -1,0 +1,16 @@
+id: gitops-pr-automator
+pullRequest:
+  title: 'GitOps PR for release of ({{ date }})'
+  githubLabels:
+    - gitops
+    - gitops-test
+  enableAutoMerge: 'squash'
+  pullRequestComment:
+    'This PR was automatically created by the GitOps PR Automator. Please review
+    the changes and merge if they look good.'
+sourceRepos:
+  - repo: abdolence/gitops-pr-automator
+    ref: heads/master
+    releaseFiles:
+      - path: '**/*.values.yaml'
+        regex: '(?<=(tag: ))[a-f0-9]{40}(?=(.*))'
