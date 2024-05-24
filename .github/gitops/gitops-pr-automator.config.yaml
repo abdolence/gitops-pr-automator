@@ -11,10 +11,10 @@ pullRequest:
     email: me@abdolence.dev
 releaseFiles:
   - path: "**/*.values.yaml"
-    replaceRegex: "tag: [a-f0-9]{40}"
+    regex: "(?<=(tag: ))[a-f0-9]{40}(?=(.*))"
 sourceRepos:
   - repo: abdolence/hello-world
-    branch: master
+    ref: heads/master
     releaseFiles:
       - path: "**/*.values.yaml"
         ignore: "node_modules/**"

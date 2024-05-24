@@ -1,10 +1,12 @@
-import * as core from '@actions/core';
-import * as glob from '@actions/glob';
-import * as github from '@actions/github';
-import * as yaml from 'js-yaml';
-import * as fs from 'fs/promises';
+import * as core from '@actions/core'
+import * as glob from '@actions/glob'
+import * as github from '@actions/github'
+import * as yaml from 'js-yaml'
+import * as fs from 'fs/promises'
+import * as z from 'zod'
 
-import { Config } from './config';
+import { Config, configSchema } from './config'
+import { findVersionChanges } from './version-changes-finder'
 
 /**
  * The main function for the action.
@@ -18,12 +20,17 @@ export async function run(): Promise<void> {
     let gl = await g.glob();
     console.log(gl);
 
-    const config = yaml.load(await fs.readFile(".github/gitops/gitops-pr-automator.config.yaml").toString()) as Config;
+    const configContent = await fs.readFile(".github/gitops/gitops-pr-automator.config.yaml");
+    const config = configSchema.parse(yaml.load(configContent.toString()));
     console.log(config);
 
     const regex = new RegExp("(?<=(tag: ))[a-f0-9]{40}(?=(.*))");
     const matched = "test tag: 1234567890123456789012345678901234567890 test".match(regex);
     console.log(matched);
+
+    const versionChanges = await findVersionChanges(config.releaseFiles || []);
+
+    console.log(versionChanges);
 
     const githubToken: string = core.getInput('github-token');
     if(!githubToken) {
@@ -47,6 +54,12 @@ export async function run(): Promise<void> {
     core.setOutput('time', new Date().toTimeString())
   } catch (error) {
     // Fail the workflow run if an error occurs
-    if (error instanceof Error) core.setFailed(error.message)
+    if (error instanceof z.ZodError) {
+      console.error(error.errors); // Detailed validation errors
+      core.setFailed(error.errors.toString());
+    }
+    else if (error instanceof Error) {
+      core.setFailed(error.message);
+    }
   }
 }
