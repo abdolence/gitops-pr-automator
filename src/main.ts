@@ -1,5 +1,4 @@
 import * as core from '@actions/core'
-import { wait } from './wait'
 
 /**
  * The main function for the action.
@@ -13,8 +12,6 @@ export async function run(): Promise<void> {
     core.debug(`Waiting ${ms} milliseconds ...`)
 
     // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
     core.debug(new Date().toTimeString())
 
     // Set outputs for other workflow steps to use
