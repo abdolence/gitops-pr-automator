@@ -1,3 +1,4 @@
+id: gitops-pr-automator
 pullRequest:
   title: "GitOps PR for release of ({{ date }})"
   githubLabel: gitops-test

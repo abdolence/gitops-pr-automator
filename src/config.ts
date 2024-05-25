@@ -39,6 +39,7 @@ const pullRequestSchema = z.object({
 
 // Main Config schema
 export const configSchema = z.object({
+  id: z.string(),
   pullRequest: pullRequestSchema,
   sourceRepos: z.array(sourceRepoConfigSchema),
 });

@@ -19,6 +19,7 @@ export interface GitCommit {
 export interface FoundChanges {
   sourceRepo: SourceRepoConfig,
   repoVersionsToUpdate: FoundVersion[],
+  currentVersion: string,
   commits: GitCommit[]
 }
 
@@ -64,7 +65,7 @@ export async function findChangesInSourceRepo(sourceRepo: SourceRepoConfig, octo
         }
       }
     }
-    return { sourceRepo, repoVersionsToUpdate, commits: relevantCommits };
+    return { sourceRepo, repoVersionsToUpdate, currentVersion, commits: relevantCommits };
   }
 }
 

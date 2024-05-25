@@ -3,13 +3,15 @@ import * as glob from '@actions/glob'
 import fs from 'fs/promises'
 
 export interface FoundVersionedFile {
-  path: string;
-  content: string;
+  absolutePath: string
+  gitPath: string
+  content: string
+  matchedRegex: RegExp
 }
 
 export interface FoundVersion {
-  version: string;
-  files: FoundVersionedFile[];
+  version: string
+  files: FoundVersionedFile[]
 }
 
 export async function findVersions(releaseFiles: ReleaseFileConfig[]): Promise<FoundVersion[]> {
@@ -28,11 +30,19 @@ export async function findVersions(releaseFiles: ReleaseFileConfig[]): Promise<F
           const version = matched[0].trim();
           console.debug(`Found version: ${version} in file: ${filePath}`);
           const existing = results.get(version);
+          const gitPath = filePath
+            .replace(process.cwd(), '')
+            .replace(/\\/g, '/')
+            .replace(/^\//, '');
 
           const versionedFile: FoundVersionedFile = {
-            path: filePath,
+            absolutePath: filePath,
+            gitPath: gitPath,
             content: fileContent,
+            matchedRegex: fileRegex,
           };
+
+          console.debug(versionedFile);
 
           if (existing) {
             existing.files.push(versionedFile);
