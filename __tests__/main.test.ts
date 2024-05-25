@@ -38,7 +38,11 @@ describe('action', () => {
     getInputMock.mockImplementation(name => {
       switch (name) {
         case 'github-token':
-          return process.env.GITHUB_TOKEN || process.env.TEST_GITHUB_TOKEN || 'mock-github-token'
+          return (
+            process.env.GITHUB_TOKEN ||
+            process.env.TEST_GITHUB_TOKEN ||
+            'mock-github-token'
+          )
         default:
           return ''
       }
@@ -46,7 +50,5 @@ describe('action', () => {
 
     await main.run()
     expect(runMock).toHaveReturned()
-
   }, 1000000)
-
 })

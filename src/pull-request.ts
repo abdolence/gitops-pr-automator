@@ -3,58 +3,66 @@ import * as github from '@actions/github'
 import { RequestError } from '@octokit/request-error'
 import { FoundChanges } from './changes'
 
-type Octokit = ReturnType<typeof github.getOctokit>;
+type Octokit = ReturnType<typeof github.getOctokit>
 
-export async function createPullRequest(config: Config, allRepoChanges: FoundChanges[], octokit: Octokit) {
-  const gitOpsRepo = github.context.repo;
-  const { data: repoData } = await octokit.rest.repos.get({ owner: gitOpsRepo.owner, repo: gitOpsRepo.repo });
-  const defaultBranch = repoData.default_branch;
+export async function createPullRequest(
+  config: Config,
+  allRepoChanges: FoundChanges[],
+  octokit: Octokit
+) {
+  const gitOpsRepo = github.context.repo
+  const { data: repoData } = await octokit.rest.repos.get({
+    owner: gitOpsRepo.owner,
+    repo: gitOpsRepo.repo
+  })
+  const defaultBranch = repoData.default_branch
 
-  console.info(`Default branch for ${gitOpsRepo.owner}/${gitOpsRepo.repo} is ${defaultBranch}`);
+  console.info(
+    `Default branch for ${gitOpsRepo.owner}/${gitOpsRepo.repo} is ${defaultBranch}`
+  )
 
   const { data: refData } = await octokit.rest.git.getRef({
     owner: gitOpsRepo.owner,
     repo: gitOpsRepo.repo,
-    ref: `heads/${defaultBranch}`,
-  });
+    ref: `heads/${defaultBranch}`
+  })
 
-  console.info(`Default branch ref for ${gitOpsRepo.owner}/${gitOpsRepo.repo} is ${refData.object.sha}`);
+  console.info(
+    `Default branch ref for ${gitOpsRepo.owner}/${gitOpsRepo.repo} is ${refData.object.sha}`
+  )
 
   // Find existing PRs
-  const existingPRs = await findExistingPullRequests(config, octokit);
+  const existingPRs = await findExistingPullRequests(config, octokit)
 
-  let pullRequest = undefined;
-  if(existingPRs.length > 0) {
-    console.info(`Found ${existingPRs.length} existing PRs for ${config.id}`);
-    pullRequest = existingPRs[0];
+  let pullRequest = undefined
+  if (existingPRs.length > 0) {
+    console.info(`Found ${existingPRs.length} existing PRs for ${config.id}`)
+    pullRequest = existingPRs[0]
 
     // Merge the PR
     await octokit.rest.repos.merge({
       owner: gitOpsRepo.owner,
       repo: gitOpsRepo.repo,
       base: pullRequest.base.ref,
-      head: pullRequest.head.ref,
-    });
+      head: pullRequest.head.ref
+    })
+  } else {
+    await removeAllAutomatorBranches(config, octokit)
 
-
-  }
-  else {
-    await removeAllAutomatorBranches(config, octokit);
-
-    console.info(`No existing PRs found for ${config.id}. Creating a new PR`);
+    console.info(`No existing PRs found for ${config.id}. Creating a new PR`)
     // Create a new branch name that includes the config id and the current timestamp to make it unique
-    const newBranchName = `${config.id}/${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`;
-    const newBranchRef = `refs/heads/${newBranchName}`;
+    const newBranchName = `${config.id}/${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`
+    const newBranchRef = `refs/heads/${newBranchName}`
 
     // Create a new branch
     await octokit.rest.git.createRef({
       owner: gitOpsRepo.owner,
       repo: gitOpsRepo.repo,
       ref: newBranchRef,
-      sha: refData.object.sha,
-    });
+      sha: refData.object.sha
+    })
 
-    await commitChanges(octokit, newBranchName, allRepoChanges);
+    await commitChanges(octokit, newBranchName, allRepoChanges)
 
     await octokit.rest.pulls.create({
       owner: gitOpsRepo.owner,
@@ -62,9 +70,8 @@ export async function createPullRequest(config: Config, allRepoChanges: FoundCha
       title: config.pullRequest.title,
       head: newBranchName,
       base: defaultBranch,
-      body: 'Description of your pull request',
-    });
-
+      body: 'Description of your pull request'
+    })
   }
 
   // const newBranchName = `${config.id}/${new Date().toISOString()}`;
@@ -102,32 +109,35 @@ export async function createPullRequest(config: Config, allRepoChanges: FoundCha
   // });
 }
 
-
 async function getFileSha(octokit: Octokit, path: string) {
-  const gitOpsRepo = github.context.repo;
+  const gitOpsRepo = github.context.repo
   try {
-    const response = await octokit.rest.repos.getContent({ owner: gitOpsRepo.owner, repo: gitOpsRepo.repo, path });
-    return (response.data as any).sha; // Type assertion is needed
+    const response = await octokit.rest.repos.getContent({
+      owner: gitOpsRepo.owner,
+      repo: gitOpsRepo.repo,
+      path
+    })
+    return (response.data as any).sha // Type assertion is needed
   } catch (error) {
-    if (error instanceof RequestError && error.status === 404) return undefined; // File not found
-    throw error;
+    if (error instanceof RequestError && error.status === 404) return undefined // File not found
+    throw error
   }
 }
 
 async function findExistingPullRequests(config: Config, octokit: Octokit) {
-  const gitOpsRepo = github.context.repo;
+  const gitOpsRepo = github.context.repo
 
   const { data: pullRequests } = await octokit.rest.pulls.list({
     owner: gitOpsRepo.owner,
     repo: gitOpsRepo.repo,
-    state: "open"
-  });
+    state: 'open'
+  })
 
   const filteredPRs = pullRequests.filter(pr =>
     pr.head.ref.startsWith(`${config.id}/`)
-  );
+  )
 
-  return filteredPRs;
+  return filteredPRs
 }
 
 interface FileToUpdate {
@@ -136,27 +146,40 @@ interface FileToUpdate {
   currentVersion: string
 }
 
-async function commitChanges(octokit: Octokit, branchName: string, allRepoChanges: FoundChanges[]) {
-  console.info(`Committing changes to branch ${branchName}`);
-  const gitOpsRepo = github.context.repo;
-  const filesToUpdate = new Map<string, FileToUpdate>();
+async function commitChanges(
+  octokit: Octokit,
+  branchName: string,
+  allRepoChanges: FoundChanges[]
+) {
+  console.info(`Committing changes to branch ${branchName}`)
+  const gitOpsRepo = github.context.repo
+  const filesToUpdate = new Map<string, FileToUpdate>()
 
   for (const repoChanges of allRepoChanges) {
     for (const version of repoChanges.repoVersionsToUpdate) {
       for (const file of version.files) {
-        let fileToUpdate = filesToUpdate.get(file.gitPath);
-        if(!fileToUpdate) {
-          fileToUpdate = { gitPath: file.gitPath, content: file.content, currentVersion: repoChanges.currentVersion };
-          filesToUpdate.set(file.gitPath, fileToUpdate);
+        let fileToUpdate = filesToUpdate.get(file.gitPath)
+        if (!fileToUpdate) {
+          fileToUpdate = {
+            gitPath: file.gitPath,
+            content: file.content,
+            currentVersion: repoChanges.currentVersion
+          }
+          filesToUpdate.set(file.gitPath, fileToUpdate)
         }
-        fileToUpdate.content = fileToUpdate.content.replaceAll(file.matchedRegex, repoChanges.currentVersion);
+        fileToUpdate.content = fileToUpdate.content.replaceAll(
+          file.matchedRegex,
+          repoChanges.currentVersion
+        )
       }
     }
   }
 
   for (const fileToUpdate of filesToUpdate.values()) {
-    const fileSha = await getFileSha(octokit, fileToUpdate.gitPath);
-    console.debug(`Updating file ${fileToUpdate.gitPath} with new version ${fileToUpdate.currentVersion} with sha ${fileSha}`)
+    const fileSha = await getFileSha(octokit, fileToUpdate.gitPath)
+    console.debug(
+      `Updating file ${fileToUpdate.gitPath} with new version ${fileToUpdate.currentVersion} with sha ${fileSha}`
+    )
 
     await octokit.rest.repos.createOrUpdateFileContents({
       owner: gitOpsRepo.owner,
@@ -165,31 +188,33 @@ async function commitChanges(octokit: Octokit, branchName: string, allRepoChange
       message: `chore(release): Update ${fileToUpdate.gitPath} to ${fileToUpdate.currentVersion}`,
       content: Buffer.from(fileToUpdate.content).toString('base64'),
       branch: branchName,
-      sha: fileSha,
-    });
+      sha: fileSha
+    })
   }
 }
 
 async function removeAllAutomatorBranches(config: Config, octokit: Octokit) {
-  const gitOpsRepo = github.context.repo;
+  const gitOpsRepo = github.context.repo
 
   const { data: branches } = await octokit.rest.repos.listBranches({
     owner: gitOpsRepo.owner,
-    repo: gitOpsRepo.repo,
-  });
+    repo: gitOpsRepo.repo
+  })
 
-  const automatorBranches = branches.filter(branch => branch.name.startsWith(`${config.id}/`));
+  const automatorBranches = branches.filter(branch =>
+    branch.name.startsWith(`${config.id}/`)
+  )
 
   for (const branch of automatorBranches) {
     try {
       await octokit.rest.git.deleteRef({
         owner: gitOpsRepo.owner,
         repo: gitOpsRepo.repo,
-        ref: `heads/${branch.name}`,
-      });
+        ref: `heads/${branch.name}`
+      })
     } catch (error) {
-      console.error(`Failed to delete branch ${branch}`);
-      console.error(error);
+      console.error(`Failed to delete branch ${branch}`)
+      console.error(error)
     }
   }
 }

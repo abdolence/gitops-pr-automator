@@ -17,56 +17,68 @@ export interface GitCommit {
 }
 
 export interface FoundChanges {
-  sourceRepo: SourceRepoConfig,
-  repoVersionsToUpdate: FoundVersion[],
-  currentVersion: string,
+  sourceRepo: SourceRepoConfig
+  repoVersionsToUpdate: FoundVersion[]
+  currentVersion: string
   commits: GitCommit[]
 }
 
+export async function findChangesInSourceRepo(
+  sourceRepo: SourceRepoConfig,
+  octokit: ReturnType<typeof github.getOctokit>
+): Promise<FoundChanges | undefined> {
+  const repoVersions = await findVersions(sourceRepo.releaseFiles || [])
+  core.info(
+    `Found version: [${repoVersions.map(ver => ver.version).join(', ')}] for '${sourceRepo.repo}'`
+  )
 
-export async function findChangesInSourceRepo(sourceRepo: SourceRepoConfig, octokit: ReturnType<typeof github.getOctokit>): Promise<FoundChanges | undefined> {
-  const repoVersions = await findVersions(sourceRepo.releaseFiles || []);
-  core.info(`Found version: [${repoVersions.map((ver) => ver.version).join(', ')}] for '${sourceRepo.repo}'`);
+  const [owner, repo] = sourceRepo.repo.split('/')
 
-  const [owner, repo] = sourceRepo.repo.split('/');
-
-  console.debug(`Getting the current version of ${sourceRepo.repo}`);
+  console.debug(`Getting the current version of ${sourceRepo.repo}`)
 
   const { data: refData } = await octokit.rest.git.getRef({
     owner: owner,
     repo: repo,
-    ref: sourceRepo.ref || "heads/master"
-  });
+    ref: sourceRepo.ref || 'heads/master'
+  })
 
-  const currentVersion = refData.object.sha;
+  const currentVersion = refData.object.sha
 
-  core.info(`Current version in ${sourceRepo.repo} is ${currentVersion}`);
+  core.info(`Current version in ${sourceRepo.repo} is ${currentVersion}`)
 
-  const repoVersionsToUpdate = repoVersions.filter((ver) => ver.version !== currentVersion);
+  const repoVersionsToUpdate = repoVersions.filter(
+    ver => ver.version !== currentVersion
+  )
 
-  if(repoVersionsToUpdate.length === 0) {
-    core.info(`No new version found for ${sourceRepo.repo}`);
-    return undefined;
-  }
-  else {
-    core.info(`New version found for ${sourceRepo.repo}`);
-    const relevantCommits: GitCommit[] = [];
-    for(const ver of repoVersionsToUpdate) {
-      const commits = await octokit.paginate(octokit.rest.repos.compareCommits, {
-        owner,
-        repo,
-        base: ver.version, // Older commit
-        head: currentVersion,   // Newer commit
-      }, response => response.data.commits);
+  if (repoVersionsToUpdate.length === 0) {
+    core.info(`No new version found for ${sourceRepo.repo}`)
+    return undefined
+  } else {
+    core.info(`New version found for ${sourceRepo.repo}`)
+    const relevantCommits: GitCommit[] = []
+    for (const ver of repoVersionsToUpdate) {
+      const commits = await octokit.paginate(
+        octokit.rest.repos.compareCommits,
+        {
+          owner,
+          repo,
+          base: ver.version, // Older commit
+          head: currentVersion // Newer commit
+        },
+        response => response.data.commits
+      )
 
-      for(const commit of commits) {
-        if(!relevantCommits.find((c) => c.sha === commit.sha)) {
-          relevantCommits.push(commit as GitCommit);
+      for (const commit of commits) {
+        if (!relevantCommits.find(c => c.sha === commit.sha)) {
+          relevantCommits.push(commit as GitCommit)
         }
       }
     }
-    return { sourceRepo, repoVersionsToUpdate, currentVersion, commits: relevantCommits };
+    return {
+      sourceRepo,
+      repoVersionsToUpdate,
+      currentVersion,
+      commits: relevantCommits
+    }
   }
 }
-
-
