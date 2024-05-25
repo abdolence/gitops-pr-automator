@@ -39,6 +39,8 @@ export async function createPullRequest(config: Config, allRepoChanges: FoundCha
 
   }
   else {
+    await removeAllAutomatorBranches(config, octokit);
+
     console.info(`No existing PRs found for ${config.id}. Creating a new PR`);
     // Create a new branch name that includes the config id and the current timestamp to make it unique
     const newBranchName = `${config.id}/${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`;
@@ -53,6 +55,15 @@ export async function createPullRequest(config: Config, allRepoChanges: FoundCha
     });
 
     await commitChanges(octokit, newBranchName, allRepoChanges);
+
+    await octokit.rest.pulls.create({
+      owner: gitOpsRepo.owner,
+      repo: gitOpsRepo.repo,
+      title: config.pullRequest.title,
+      head: newBranchName,
+      base: defaultBranch,
+      body: 'Description of your pull request',
+    });
 
   }
 
@@ -119,26 +130,66 @@ async function findExistingPullRequests(config: Config, octokit: Octokit) {
   return filteredPRs;
 }
 
+interface FileToUpdate {
+  gitPath: string
+  content: string
+  currentVersion: string
+}
+
 async function commitChanges(octokit: Octokit, branchName: string, allRepoChanges: FoundChanges[]) {
   console.info(`Committing changes to branch ${branchName}`);
   const gitOpsRepo = github.context.repo;
+  const filesToUpdate = new Map<string, FileToUpdate>();
 
   for (const repoChanges of allRepoChanges) {
     for (const version of repoChanges.repoVersionsToUpdate) {
       for (const file of version.files) {
-        const updatedContent = file.content.replaceAll(file.matchedRegex, repoChanges.currentVersion);
-
-        const fileSha = await getFileSha(octokit, file.gitPath);
-        await octokit.rest.repos.createOrUpdateFileContents({
-          owner: gitOpsRepo.owner,
-          repo: gitOpsRepo.repo,
-          path: file.gitPath,
-          message: `Update ${repoChanges.sourceRepo.repo} version from ${version.version} to ${repoChanges.currentVersion}`,
-          content: Buffer.from(updatedContent).toString('base64'),
-          branch: branchName,
-          sha: fileSha,
-        });
+        let fileToUpdate = filesToUpdate.get(file.gitPath);
+        if(!fileToUpdate) {
+          fileToUpdate = { gitPath: file.gitPath, content: file.content, currentVersion: repoChanges.currentVersion };
+          filesToUpdate.set(file.gitPath, fileToUpdate);
+        }
+        fileToUpdate.content = fileToUpdate.content.replaceAll(file.matchedRegex, repoChanges.currentVersion);
       }
+    }
+  }
+
+  for (const fileToUpdate of filesToUpdate.values()) {
+    const fileSha = await getFileSha(octokit, fileToUpdate.gitPath);
+    console.debug(`Updating file ${fileToUpdate.gitPath} with new version ${fileToUpdate.currentVersion} with sha ${fileSha}`)
+
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner: gitOpsRepo.owner,
+      repo: gitOpsRepo.repo,
+      path: fileToUpdate.gitPath,
+      message: `chore(release): Update ${fileToUpdate.gitPath} to ${fileToUpdate.currentVersion}`,
+      content: Buffer.from(fileToUpdate.content).toString('base64'),
+      branch: branchName,
+      sha: fileSha,
+    });
+  }
+}
+
+async function removeAllAutomatorBranches(config: Config, octokit: Octokit) {
+  const gitOpsRepo = github.context.repo;
+
+  const { data: branches } = await octokit.rest.repos.listBranches({
+    owner: gitOpsRepo.owner,
+    repo: gitOpsRepo.repo,
+  });
+
+  const automatorBranches = branches.filter(branch => branch.name.startsWith(`${config.id}/`));
+
+  for (const branch of automatorBranches) {
+    try {
+      await octokit.rest.git.deleteRef({
+        owner: gitOpsRepo.owner,
+        repo: gitOpsRepo.repo,
+        ref: `heads/${branch.name}`,
+      });
+    } catch (error) {
+      console.error(`Failed to delete branch ${branch}`);
+      console.error(error);
     }
   }
 }

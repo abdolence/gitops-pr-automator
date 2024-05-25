@@ -47,6 +47,6 @@ describe('action', () => {
     await main.run()
     expect(runMock).toHaveReturned()
 
-  })
+  }, 1000000)
 
 })

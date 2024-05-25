@@ -19,7 +19,7 @@ export async function run(): Promise<void> {
     const config = await loadConfigFromYaml(configPath);
 
     const githubToken: string = core.getInput('github-token');
-    if(!githubToken) {
+    if( !githubToken ) {
       core.setFailed('GitHub token not provided. Please specify the `github-token` input.');
       return;
     }
