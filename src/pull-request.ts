@@ -101,40 +101,6 @@ export async function createPullRequest(
       config.pullRequest.enableAutoMerge
     )
   }
-
-  // const newBranchName = `${config.id}/${new Date().toISOString()}`;
-  // const newBranchRef = `refs/heads/${newBranchName}`;
-  // await octokit.rest.git.createRef({
-  //   owner: gitOpsRepo.owner,
-  //   repo: gitOpsRepo.repo,
-  //   ref: newBranchRef,
-  //   sha: refData.object.sha,
-  // });
-
-  // 4. Commit Changes (Example)
-  // const path = 'path/to/your/file.txt'; // Path to file you want to change
-  // const content = 'New content for the file';
-  //
-  // const fileSha = await getFileSha(octokit, owner, repo, path);
-  // await octokit.rest.repos.createOrUpdateFileContents({
-  //   owner,
-  //   repo,
-  //   path,
-  //   message: 'Commit message',
-  //   content: Buffer.from(content).toString('base64'),
-  //   branch: newBranchName,
-  //   sha: fileSha // Only necessary if updating an existing file
-  // });
-  //
-  // // 5. Create Pull Request
-  // await octokit.rest.pulls.create({
-  //   owner,
-  //   repo,
-  //   title: 'Title of your pull request',
-  //   head: newBranchName,
-  //   base: defaultBranch,
-  //   body: 'Description of your pull request',
-  // });
 }
 
 async function getFileSha(
