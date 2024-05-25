@@ -12,7 +12,6 @@ import * as main from '../src/main'
 // Mock the action's main function
 const runMock = jest.spyOn(main, 'run')
 
-
 // Mock the GitHub Actions core library
 let getInputMock: jest.SpiedFunction<typeof core.getInput>
 
