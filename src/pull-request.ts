@@ -31,6 +31,8 @@ export async function createPullRequest(
     `Default branch ref for ${gitOpsRepo.owner}/${gitOpsRepo.repo} is ${refData.object.sha}`
   )
 
+  const prSummaryText = await generatePrSummaryText(config, allRepoChanges)
+
   // Find existing PRs
   const existingPRs = await findExistingPullRequests(config, octokit)
 
@@ -45,6 +47,14 @@ export async function createPullRequest(
       repo: gitOpsRepo.repo,
       base: pullRequest.head.ref,
       head: pullRequest.base.ref
+    })
+
+    // Update the PR summary text
+    await octokit.rest.issues.update({
+      owner: gitOpsRepo.owner,
+      repo: gitOpsRepo.repo,
+      issue_number: pullRequest.number,
+      body: prSummaryText
     })
   } else {
     await removeAllAutomatorBranches(config, octokit)
@@ -64,14 +74,32 @@ export async function createPullRequest(
 
     await commitChanges(octokit, newBranchName, allRepoChanges)
 
-    await octokit.rest.pulls.create({
+    const response = await octokit.rest.pulls.create({
       owner: gitOpsRepo.owner,
       repo: gitOpsRepo.repo,
       title: config.pullRequest.title,
       head: newBranchName,
       base: defaultBranch,
-      body: 'Description of your pull request',
+      body: prSummaryText
     })
+
+    pullRequest = response.data
+  }
+
+  // Add labels to the PR
+  await octokit.rest.issues.addLabels({
+    owner: gitOpsRepo.owner,
+    repo: gitOpsRepo.repo,
+    issue_number: pullRequest.number,
+    labels: config.pullRequest.githubLabels
+  })
+
+  if (config.pullRequest.enableAutoMerge) {
+    await enableAutoMerge(
+      octokit,
+      pullRequest.number,
+      config.pullRequest.enableAutoMerge
+    )
   }
 
   // const newBranchName = `${config.id}/${new Date().toISOString()}`;
@@ -219,4 +247,49 @@ async function removeAllAutomatorBranches(
       console.error(error)
     }
   }
+}
+
+async function enableAutoMerge(
+  octokit: Octokit,
+  pullNumber: number,
+  mergeMethod: 'merge' | 'squash' | 'rebase' = 'merge'
+) {
+  const gitOpsRepo = github.context.repo
+  try {
+    const response = await octokit.rest.pulls.update({
+      owner: gitOpsRepo.owner,
+      repo: gitOpsRepo.repo,
+      pull_number: pullNumber,
+      auto_merge: true,
+      merge_method: mergeMethod
+    })
+
+    console.log('Auto-merge enabled:', response.data.auto_merge)
+  } catch (error) {
+    console.error('Error enabling auto-merge:', error)
+  }
+}
+
+async function generatePrSummaryText(
+  config: Config,
+  allRepoChanges: FoundChanges[]
+): Promise<string> {
+  let prSummaryText =
+    config.pullRequest.pullRequestComment || 'GitOps Automator PR Summary'
+  prSummaryText += '\n\n'
+  for (const repoChanges of allRepoChanges) {
+    prSummaryText += `## ${repoChanges.sourceRepo.repo}\n\n`
+    prSummaryText += `### Versions:\n\n`
+    prSummaryText += `\n\nUpdated to: [${repoChanges.currentVersion.slice(0, 9)}](https://github.com/${repoChanges.sourceRepo.repo}/commits/${repoChanges.currentVersion}).\nExisting versions:\n\n`
+
+    for (const version of repoChanges.repoVersionsToUpdate) {
+      prSummaryText += `- [${version.version.slice(0, 9)}](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.version})\n`
+    }
+
+    prSummaryText += `\n\n### Changes:\n\n`
+    for (const commit of repoChanges.commits) {
+      prSummaryText += `- [${commit.sha.slice(0, 8)}](${commit.html_url}) ${commit.commit.message} by @${commit.author.login}\n`
+    }
+  }
+  return prSummaryText
 }

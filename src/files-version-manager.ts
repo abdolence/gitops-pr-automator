@@ -46,8 +46,6 @@ export async function findVersions(
             matchedRegex: fileRegex
           }
 
-          console.debug(versionedFile)
-
           if (existing) {
             existing.files.push(versionedFile)
             results.set(version, existing)
