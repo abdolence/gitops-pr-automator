@@ -43,8 +43,8 @@ export async function createPullRequest(
     await octokit.rest.repos.merge({
       owner: gitOpsRepo.owner,
       repo: gitOpsRepo.repo,
-      base: pullRequest.base.ref,
-      head: pullRequest.head.ref
+      base: pullRequest.head.ref,
+      head: pullRequest.base.ref
     })
   } else {
     await removeAllAutomatorBranches(config, octokit)
@@ -70,7 +70,7 @@ export async function createPullRequest(
       title: config.pullRequest.title,
       head: newBranchName,
       base: defaultBranch,
-      body: 'Description of your pull request'
+      body: 'Description of your pull request',
     })
   }
 
