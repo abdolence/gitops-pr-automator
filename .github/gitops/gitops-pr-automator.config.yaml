@@ -1,17 +1,13 @@
 id: gitops-pr-automator
 pullRequest:
   title: 'GitOps PR for release of ({{ date }})'
-  githubLabel: gitops-test
-  additionalLabels:
+  githubLabels:
     - gitops
-  enableAutoMerge: true
+    - gitops-test
+  enableAutoMerge: 'squash'
   pullRequestComment:
     'This PR was automatically created by the GitOps PR Automator. Please review
     the changes and merge if they look good.'
-  includePullRequestsHistory: true
-  author:
-    username: abdolence
-    email: me@abdolence.dev
 sourceRepos:
   - repo: abdolence/gitops-pr-automator
     ref: heads/master

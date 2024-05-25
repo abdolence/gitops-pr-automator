@@ -20,21 +20,22 @@ const sourceRepoConfigSchema = z.object({
 
 export type SourceRepoConfig = z.infer<typeof sourceRepoConfigSchema>
 
-// Schema for PullRequestAuthorConfig
-const pullRequestAuthorConfigSchema = z.object({
-  username: z.string(),
-  email: z.string().email()
-})
+const MergeStrategiesSchema = z.union([
+  z.literal('squash'),
+  z.literal('rebase'),
+  z.literal('merge'),
+  z.literal(undefined)
+])
+
+// TypeScript Type Inference
+type MergeStrategies = z.infer<typeof MergeStrategiesSchema>
 
 // Schema for PullRequest
 const pullRequestSchema = z.object({
   title: z.string(),
-  githubLabel: z.string(),
-  additionalLabels: z.array(z.string()).optional(),
-  enableAutoMerge: z.boolean().optional(),
-  pullRequestComment: z.string().optional(),
-  includePullRequestsHistory: z.boolean().optional(),
-  author: pullRequestAuthorConfigSchema
+  githubLabels: z.array(z.string()).optional(),
+  enableAutoMerge: MergeStrategiesSchema,
+  pullRequestComment: z.string().optional()
 })
 
 // Main Config schema

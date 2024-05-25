@@ -6,12 +6,19 @@ import * as core from '@actions/core'
 export interface GitCommit {
   sha: string
   url: string
-  author: {
-    name: string
-    email: string
-  }
+  html_url: string
   commit: {
     message: string
+    author: {
+      name: string
+      email: string
+    }
+    url: string
+  }
+  author: {
+    id: number
+    login: string
+    url: string
   }
   comments_url: string
 }
