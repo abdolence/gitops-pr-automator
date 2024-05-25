@@ -109,7 +109,10 @@ export async function createPullRequest(
   // });
 }
 
-async function getFileSha(octokit: Octokit, path: string) {
+async function getFileSha(
+  octokit: Octokit,
+  path: string
+): Promise<string | undefined> {
   const gitOpsRepo = github.context.repo
   try {
     const response = await octokit.rest.repos.getContent({
@@ -133,11 +136,7 @@ async function findExistingPullRequests(config: Config, octokit: Octokit) {
     state: 'open'
   })
 
-  const filteredPRs = pullRequests.filter(pr =>
-    pr.head.ref.startsWith(`${config.id}/`)
-  )
-
-  return filteredPRs
+  return pullRequests.filter(pr => pr.head.ref.startsWith(`${config.id}/`))
 }
 
 interface FileToUpdate {
@@ -150,7 +149,7 @@ async function commitChanges(
   octokit: Octokit,
   branchName: string,
   allRepoChanges: FoundChanges[]
-) {
+): Promise<void> {
   console.info(`Committing changes to branch ${branchName}`)
   const gitOpsRepo = github.context.repo
   const filesToUpdate = new Map<string, FileToUpdate>()
@@ -193,7 +192,10 @@ async function commitChanges(
   }
 }
 
-async function removeAllAutomatorBranches(config: Config, octokit: Octokit) {
+async function removeAllAutomatorBranches(
+  config: Config,
+  octokit: Octokit
+): Promise<void> {
   const gitOpsRepo = github.context.repo
 
   const { data: branches } = await octokit.rest.repos.listBranches({
