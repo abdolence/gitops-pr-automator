@@ -40318,7 +40318,7 @@ async function run() {
         }
         const defaultOctokit = github.getOctokit(githubToken);
         let repoAccessOctokit = null;
-        const githubTokenRepoAccess = core.getInput('github-token-repo-access');
+        const githubTokenRepoAccess = core.getInput('github-token-read-repos');
         if (githubTokenRepoAccess) {
             repoAccessOctokit = github.getOctokit(githubTokenRepoAccess);
         }
