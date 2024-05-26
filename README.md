@@ -153,6 +153,12 @@ detected with this step.
           })
 ```
 
+## Versioning schemes
+The action supports the following versioning schemes:
+- `commit-sha` - the full commit SHA of the source repository, default mode
+- `commit-tags-or-sha` - the tags of the source repository and if not present the full commit SHA.
+- `commit-tags-only` - the tags of the source repository. If tags are not available, the commit SHA is not used.
+
 ## Security
 
 This action uses the GitHub token provided to create pull requests and also read
