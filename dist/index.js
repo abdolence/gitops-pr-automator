@@ -40300,6 +40300,7 @@ const z = __importStar(__nccwpck_require__(3301));
 const config_1 = __nccwpck_require__(6373);
 const changes_1 = __nccwpck_require__(5572);
 const pull_request_1 = __nccwpck_require__(4773);
+const request_error_1 = __nccwpck_require__(537);
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -40346,6 +40347,10 @@ async function run() {
         if (error instanceof z.ZodError) {
             console.error(error.errors); // Detailed validation errors
             core.setFailed(error.errors.toString());
+        }
+        else if (error instanceof request_error_1.RequestError) {
+            console.error(error);
+            core.setFailed(error.message);
         }
         else if (error instanceof Error) {
             console.error(error.message);
