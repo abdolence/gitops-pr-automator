@@ -40245,7 +40245,8 @@ const pullRequestSchema = z.object({
     title: z.string(),
     githubLabels: z.array(z.string()).optional(),
     enableAutoMerge: MergeStrategiesSchema,
-    pullRequestComment: z.string().optional()
+    pullRequestComment: z.string().optional(),
+    cleanupExistingAutomatorBranches: z.boolean().optional()
 });
 // Main Config schema
 exports.configSchema = z.object({
@@ -40423,7 +40424,9 @@ async function createPullRequest(config, allRepoChanges, octokit) {
         });
     }
     else {
-        await removeAllAutomatorBranches(config, octokit);
+        if (config.pullRequest.cleanupExistingAutomatorBranches) {
+            await removeAllAutomatorBranches(config, octokit);
+        }
         console.info(`No existing PRs found for ${config.id}. Creating a new PR`);
         // Create a new branch name that includes the config id and the current timestamp to make it unique
         const newBranchName = `${config.id}/${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`;
