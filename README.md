@@ -100,7 +100,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.inputs.project_type }}
+  group: ${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
@@ -140,7 +140,7 @@ detected with this step.
             await github.rest.actions.createWorkflowDispatch({
              owner: '<your-github-owner>',
              repo: '<your-gitops-config-repo>',
-             workflow_id: '<gitops-workflow-file-name>.yaml',
+             workflow_id: '<github-actions-workflow-file-name>.yaml',
              ref: 'master'
           })
 ```
