@@ -45,6 +45,7 @@ export async function run(): Promise<void> {
 
     for (const sourceRepo of config.sourceRepos) {
       const repoChanges = await findChangesInSourceRepo(
+        config,
         sourceRepo,
         repoAccessOctokit
       )
