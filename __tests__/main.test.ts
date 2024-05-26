@@ -22,7 +22,7 @@ describe('action', () => {
     getInputMock = jest.spyOn(core, 'getInput').mockImplementation()
   })
 
-  it('sets the time output', async () => {
+  it('detects changes in source repos', async () => {
     // Set the action's inputs as return values from core.getInput()
     getInputMock.mockImplementation(name => {
       switch (name) {

@@ -1,23 +1,27 @@
-name: 'The name of your action here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'GitOps PR Automator'
+description:
+  'Create PRs for GitOps version changes automatically for your GitHub
+  repositories.'
+author: 'Abdulla Abdurakhmanov'
 
 # Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: 'heart'
-  color: 'red'
+  icon: 'server'
+  color: 'orange'
 
 # Define your inputs here.
 inputs:
-  milliseconds:
-    description: 'Your input description here'
+  github-token:
+    description:
+      'GitHub token that has access to the repositories you want to create PRs
+      for.'
     required: true
-    default: '1000'
 
 # Define your outputs here.
 outputs:
-  time:
-    description: 'Your output description here'
+  detected-changes:
+    description:
+      'Comma-separated list of repositories that have changes detected.'
 
 runs:
   using: node20
