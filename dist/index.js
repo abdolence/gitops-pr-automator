@@ -40422,7 +40422,7 @@ async function createPullRequest(config, allRepoChanges, octokit) {
             issue_number: pullRequest.number,
             body: prSummaryText
         });
-        await commitChanges(octokit, pullRequest.head.ref, allRepoChanges);
+        await commitChanges(octokit, pullRequest.head.ref, allRepoChanges, pullRequest.head.ref);
     }
     else {
         if (config.pullRequest.cleanupExistingAutomatorBranches) {
@@ -40439,7 +40439,7 @@ async function createPullRequest(config, allRepoChanges, octokit) {
             ref: newBranchRef,
             sha: refData.object.sha
         });
-        await commitChanges(octokit, newBranchName, allRepoChanges);
+        await commitChanges(octokit, newBranchName, allRepoChanges, defaultBranch);
         const response = await octokit.rest.pulls.create({
             owner: gitOpsRepo.owner,
             repo: gitOpsRepo.repo,
@@ -40488,7 +40488,7 @@ async function findExistingPullRequests(config, octokit) {
     });
     return pullRequests.filter(pr => pr.head.ref.startsWith(`${config.id}/`));
 }
-async function commitChanges(octokit, branchName, allRepoChanges) {
+async function commitChanges(octokit, branchName, allRepoChanges, compareBranch) {
     console.info(`Committing changes to branch ${branchName}`);
     const gitOpsRepo = github.context.repo;
     const filesToUpdate = new Map();
@@ -40509,7 +40509,7 @@ async function commitChanges(octokit, branchName, allRepoChanges) {
         }
     }
     for (const fileToUpdate of filesToUpdate.values()) {
-        const fileSha = await getFileSha(octokit, fileToUpdate.gitPath, branchName);
+        const fileSha = await getFileSha(octokit, fileToUpdate.gitPath, compareBranch);
         console.debug(`Updating file ${fileToUpdate.gitPath} with new version ${fileToUpdate.currentVersion} with sha ${fileSha}`);
         await octokit.rest.repos.createOrUpdateFileContents({
             owner: gitOpsRepo.owner,
