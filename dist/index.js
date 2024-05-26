@@ -40584,7 +40584,8 @@ async function generatePrSummaryText(config, allRepoChanges) {
         }
         prSummaryText += `\n\n### Changes:\n\n`;
         for (const commit of repoChanges.commits) {
-            prSummaryText += `- [${commit.sha.slice(0, 8)}](${commit.html_url}) ${commit.commit.message} by @${commit.author.login}\n`;
+            const shortMessage = commit.commit.message.split('\n')[0];
+            prSummaryText += `- [${commit.sha.slice(0, 8)}](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`;
         }
     }
     return prSummaryText;
