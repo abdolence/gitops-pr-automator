@@ -69,16 +69,16 @@ sourceRepos:
         # Regex to both match and replace the version in the file
         # The regex leverages lookbehind and lookahead assertions
         # to match the version string and replace it
-        regex: 
-        - '(?<=(tag: ))[a-f0-9]{40}(?=(.*))'
+        regex:
+          - '(?<=(tag: ))[a-f0-9]{40}(?=(.*))'
 ```
 
 This configuration file will monitor the `abdolence/gitops-pr-automator`
 repository for new releases on the `master` branch. When a new release is
 detected, the action will create a PR in the GitOps config repository with the
 updated version references in the `*.values.yaml` files in GitOps config
-repository.
-You can specify multiple `sourceRepos` in the configuration file to monitor.
+repository. You can specify multiple `sourceRepos` in the configuration file to
+monitor.
 
 Pay attention to the `regex` field in the configuration file which describes
 both:
@@ -87,9 +87,8 @@ both:
 - How to replace the version string in the file
 
 In this example, the action will look for a string of 40 hexadecimal characters
-following `tag:` and replace it with the new version.
-You can specify multiple `regex` in the configuration file to match and replace.
-
+following `tag:` and replace it with the new version. You can specify multiple
+`regex` in the configuration file to match and replace.
 
 ### Create a GitHub Action workflow in your GitOps config repository
 

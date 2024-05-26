@@ -40226,7 +40226,7 @@ const yaml = __importStar(__nccwpck_require__(1917));
 const releaseFileConfigSchema = z.object({
     path: z.string(),
     ignore: z.string().optional(),
-    regex: z.string()
+    regex: z.array(z.string())
 });
 // Schema for SourceRepoConfig
 const sourceRepoConfigSchema = z.object({
@@ -40328,7 +40328,7 @@ async function run() {
             core.info('No changes found in any of the source repos');
         }
         else {
-            core.info(`Found changes in ${allRepoChanges.length} source repos. Creating a new PR`);
+            core.info(`Found changes in ${allRepoChanges.length} source repos. Creating a new PR or updating an existing one.`);
             await (0, pull_request_1.createPullRequest)(config, allRepoChanges, octokit);
             core.setOutput('detected-changes', allRepoChanges.map(c => c.sourceRepo.repo).join(', '));
         }
@@ -40422,6 +40422,7 @@ async function createPullRequest(config, allRepoChanges, octokit) {
             issue_number: pullRequest.number,
             body: prSummaryText
         });
+        await commitChanges(octokit, pullRequest.head.ref, allRepoChanges);
     }
     else {
         if (config.pullRequest.cleanupExistingAutomatorBranches) {
@@ -40619,32 +40620,34 @@ async function findVersions(releaseFiles) {
         console.debug(`Finding version changes in release files: ${fileConfig.path} with regex: ${fileConfig.regex}`);
         const globber = await glob.create(fileConfig.path);
         const fileResults = await globber.glob();
-        const fileRegex = new RegExp(fileConfig.regex, 'g');
         for (const filePath of fileResults) {
-            console.debug('Checking file: ', filePath);
-            const fileContent = (await promises_1.default.readFile(filePath)).toString();
-            const matchedArray = fileContent.matchAll(fileRegex);
-            for (const matched of matchedArray) {
-                if (matched && matched[0] && matched[0].trim().length > 0) {
-                    const version = matched[0].trim();
-                    console.debug(`Found version: ${version} in a file: ${filePath}`);
-                    const existing = results.get(version);
-                    const gitPath = filePath
-                        .replace(process.cwd(), '')
-                        .replace(/\\/g, '/')
-                        .replace(/^\//, '');
-                    const versionedFile = {
-                        absolutePath: filePath,
-                        gitPath: gitPath,
-                        content: fileContent,
-                        matchedRegex: fileRegex
-                    };
-                    if (existing) {
-                        existing.files.push(versionedFile);
-                        results.set(version, existing);
-                    }
-                    else {
-                        results.set(version, { version, files: [versionedFile] });
+            for (const fileRegexStr of fileConfig.regex) {
+                const fileRegex = new RegExp(fileRegexStr, 'gm');
+                console.debug('Checking file: ', filePath);
+                const fileContent = (await promises_1.default.readFile(filePath)).toString();
+                const matchedArray = fileContent.matchAll(fileRegex);
+                for (const matched of matchedArray) {
+                    if (matched && matched[0] && matched[0].trim().length > 0) {
+                        const version = matched[0].trim();
+                        console.debug(`Found version: ${version} in a file: ${filePath}`);
+                        const existing = results.get(version);
+                        const gitPath = filePath
+                            .replace(process.cwd(), '')
+                            .replace(/\\/g, '/')
+                            .replace(/^\//, '');
+                        const versionedFile = {
+                            absolutePath: filePath,
+                            gitPath: gitPath,
+                            content: fileContent,
+                            matchedRegex: fileRegex
+                        };
+                        if (existing) {
+                            existing.files.push(versionedFile);
+                            results.set(version, existing);
+                        }
+                        else {
+                            results.set(version, { version, files: [versionedFile] });
+                        }
                     }
                 }
             }
