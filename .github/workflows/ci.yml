@@ -44,6 +44,8 @@ jobs:
       - name: Test
         id: npm-ci-test
         run: npm run ci-test
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   test-action:
     name: GitHub Actions Test
