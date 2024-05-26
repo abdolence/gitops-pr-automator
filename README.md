@@ -47,7 +47,7 @@ You can create multiple config files in your GitOps repository, each containing
 different references to the source repositories and other parameters
 
 ```yaml
-# Unique identifier for the configuration, important to have unique ids for each 
+# Unique identifier for the configuration, important to have unique ids for each
 # configuration and it will be used to create branch names
 id: gitops-pr-automator
 # Parameters for the PRs created
@@ -67,7 +67,7 @@ sourceRepos:
     releaseFiles: # Files to monitor for new releases in GitOps config repository
       - path: '**/*.values.yaml' # Glob syntax to match files
         # Regex to both match and replace the version in the file
-        # The regex leverages lookbehind and lookahead assertions 
+        # The regex leverages lookbehind and lookahead assertions
         # to match the version string and replace it
         regex: '(?<=(tag: ))[a-f0-9]{40}(?=(.*))'
 ```
