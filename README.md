@@ -47,7 +47,8 @@ You can create multiple config files in your GitOps repository, each containing
 different references to the source repositories and other parameters
 
 ```yaml
-# Unique identifier for the configuration, important to have unique ids for each configuration and it will be used to create branch names
+# Unique identifier for the configuration, important to have unique ids for each 
+# configuration and it will be used to create branch names
 id: gitops-pr-automator
 # Parameters for the PRs created
 pullRequest:
@@ -66,7 +67,8 @@ sourceRepos:
     releaseFiles: # Files to monitor for new releases in GitOps config repository
       - path: '**/*.values.yaml' # Glob syntax to match files
         # Regex to both match and replace the version in the file
-        # The regex leverages lookbehind and lookahead assertions to match the version string and replace it
+        # The regex leverages lookbehind and lookahead assertions 
+        # to match the version string and replace it
         regex: '(?<=(tag: ))[a-f0-9]{40}(?=(.*))'
 ```
 
@@ -83,7 +85,7 @@ both:
 - How to replace the version string in the file
 
 In this example, the action will look for a string of 40 hexadecimal characters
-following `tag: ` and replace it with the new version.
+following `tag:` and replace it with the new version.
 
 ### Create a GitHub Action workflow in your GitOps config repository
 
