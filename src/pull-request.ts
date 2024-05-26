@@ -28,7 +28,7 @@ export async function createPullRequest(
   })
 
   console.info(
-    `Default branch ref for ${gitOpsRepo.owner}/${gitOpsRepo.repo} is ${refData.object.sha}`
+    `Default branch ref for '${gitOpsRepo.owner}/${gitOpsRepo.repo}' is '${refData.object.sha}'`
   )
 
   const prTitle = config.pullRequest.title
@@ -69,10 +69,13 @@ export async function createPullRequest(
       await removeAllAutomatorBranches(config, octokit)
     }
 
-    console.info(`No existing PRs found for ${config.id}. Creating a new PR`)
     // Create a new branch name that includes the config id and the current timestamp to make it unique
     const newBranchName = `${config.id}/${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`
     const newBranchRef = `refs/heads/${newBranchName}`
+
+    console.info(
+      `No existing PRs found for '${config.id}/**'. Creating a new PR '${newBranchRef}'`
+    )
 
     // Create a new branch
     await octokit.rest.git.createRef({
