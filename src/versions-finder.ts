@@ -32,7 +32,7 @@ export async function findVersions(
       for (const matched of matchedArray) {
         if (matched && matched[0] && matched[0].trim().length > 0) {
           const version = matched[0].trim()
-          console.debug(`Found version: ${version} in file: ${filePath}`)
+          console.debug(`Found version: ${version} in a file: ${filePath}`)
           const existing = results.get(version)
           const gitPath = filePath
             .replace(process.cwd(), '')

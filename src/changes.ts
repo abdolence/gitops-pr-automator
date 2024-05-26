@@ -36,7 +36,7 @@ export async function findChangesInSourceRepo(
 ): Promise<FoundChanges | undefined> {
   const repoVersions = await findVersions(sourceRepo.releaseFiles || [])
   core.info(
-    `Found version: [${repoVersions.map(ver => ver.version).join(', ')}] for '${sourceRepo.repo}'`
+    `Found versions: [${repoVersions.map(ver => ver.version).join(', ')}] for '${sourceRepo.repo}'`
   )
 
   const [owner, repo] = sourceRepo.repo.split('/')

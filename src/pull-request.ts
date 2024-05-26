@@ -31,6 +31,7 @@ export async function createPullRequest(
     `Default branch ref for ${gitOpsRepo.owner}/${gitOpsRepo.repo} is ${refData.object.sha}`
   )
 
+  const prTitle = config.pullRequest.title
   const prSummaryText = await generatePrSummaryText(config, allRepoChanges)
 
   // Find existing PRs
@@ -77,7 +78,7 @@ export async function createPullRequest(
     const response = await octokit.rest.pulls.create({
       owner: gitOpsRepo.owner,
       repo: gitOpsRepo.repo,
-      title: config.pullRequest.title,
+      title: prTitle,
       head: newBranchName,
       base: defaultBranch,
       body: prSummaryText
