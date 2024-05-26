@@ -10,7 +10,7 @@ pullRequest:
     Please review the changes and merge if they look good.
   cleanupExistingAutomatorBranches: true
 versioning:
-  scheme: 'commit-sha'
+  scheme: 'commit-sha-only'
   resolveTagsPattern: 'v[0-9]+.[0-9]+.[0-9]+'
 sourceRepos:
   - repo: abdolence/gitops-pr-automator

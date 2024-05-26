@@ -45,10 +45,9 @@ const versioningSchemeSchema = z.union([
   z.literal('commit-tags-only')
 ])
 
-
 const versioningSchema = z.object({
   scheme: versioningSchemeSchema,
-  resolveTagsPattern: z.string().optional(),
+  resolveTagsPattern: z.string().optional()
 })
 
 // Main Config schema

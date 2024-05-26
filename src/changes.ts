@@ -54,8 +54,13 @@ export async function findChangesInSourceRepo(
   const currentVersionSha = refData.object.sha
   let currentVersion = currentVersionSha
 
-  if(config.versioning?.scheme === 'commit-tags-or-sha' || config.versioning?.scheme === 'commit-tags-only') {
-    console.debug(`Getting the current version tag of ${sourceRepo.repo} at ${currentVersionSha}`)
+  if (
+    config.versioning?.scheme === 'commit-tags-or-sha' ||
+    config.versioning?.scheme === 'commit-tags-only'
+  ) {
+    console.debug(
+      `Getting the current version tag of ${sourceRepo.repo} at ${currentVersionSha}`
+    )
 
     // Check for git tags that match the current version SHA
     const { data: tagsData } = await octokit.rest.git.listMatchingRefs({
@@ -64,22 +69,31 @@ export async function findChangesInSourceRepo(
       ref: `tags`
     })
 
-    const tagsMatchRegex = config.versioning.resolveTagsPattern ? new RegExp(config.versioning.resolveTagsPattern) : /refs\/tags\/v\d+\.\d+\.\d+/
+    const tagsMatchRegex = config.versioning.resolveTagsPattern
+      ? new RegExp(config.versioning.resolveTagsPattern)
+      : /refs\/tags\/v\d+\.\d+\.\d+/
     const suitableTags = tagsData
       .filter(tag => tag.object.sha === currentVersionSha)
       .filter(tag => tagsMatchRegex.test(tag.ref))
-    console.debug(`Found: ${suitableTags.length}/${tagsData.length} suitable tags at ${currentVersionSha} according to the pattern: ${tagsMatchRegex.source} for ${sourceRepo.repo}`)
+    console.debug(
+      `Found: ${suitableTags.length}/${tagsData.length} suitable tags at ${currentVersionSha} according to the pattern: ${tagsMatchRegex.source} for ${sourceRepo.repo}`
+    )
 
-    if(suitableTags.length > 0) {
+    if (suitableTags.length > 0) {
       currentVersion = suitableTags[0].ref.replace('refs/tags/', '')
     }
 
-    if(config.versioning.scheme === 'commit-tags-only' && suitableTags.length === 0) {
+    if (
+      config.versioning.scheme === 'commit-tags-only' &&
+      suitableTags.length === 0
+    ) {
       return undefined
     }
   }
 
-  core.info(`Current version in ${sourceRepo.repo} is ${currentVersion}. Sha: ${currentVersionSha}`)
+  core.info(
+    `Current version in ${sourceRepo.repo} is ${currentVersion}. Sha: ${currentVersionSha}`
+  )
 
   const repoVersionsToUpdate = repoVersions.filter(
     ver => ver.version !== currentVersion
