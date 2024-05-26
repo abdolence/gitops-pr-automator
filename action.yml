@@ -11,9 +11,15 @@ branding:
 inputs:
   github-token:
     description:
-      'GitHub token that has access to the repositories you want to create PRs
-      for.'
+      'Default GitHub token that has access to the repositories you want to
+      create PRs for.'
     required: true
+  github-token-read-repos:
+    description:
+      'GitHub token that has access to the repositories you want to read
+      versions and history. Can be used to avoid providing wide permissions to
+      the default token.'
+    required: false
   config-path:
     description:
       'Path to the configuration file that defines the repositories and the
