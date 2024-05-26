@@ -4,20 +4,22 @@ description:
   repositories.'
 author: 'Abdulla Abdurakhmanov'
 
-# Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
   icon: 'server'
   color: 'orange'
 
-# Define your inputs here.
 inputs:
   github-token:
     description:
       'GitHub token that has access to the repositories you want to create PRs
       for.'
     required: true
+  config-path:
+    description:
+      'Path to the configuration file that defines the repositories and the
+      files to watch for changes.'
+    required: false
 
-# Define your outputs here.
 outputs:
   detected-changes:
     description:
