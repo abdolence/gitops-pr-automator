@@ -20,7 +20,7 @@ environment-specific configurations are stored.
 
 ```mermaid
 graph TD
-subgraph GitOps Repository
+subgraph GitOps Config Repository
   A[GitOps Config Repo]
 end
 
@@ -139,3 +139,11 @@ detected with this step.
              ref: 'master'
           })
 ```
+
+## Licence
+
+Apache Software License (ASL)
+
+## Author
+
+Abdulla Abdurakhmanov
