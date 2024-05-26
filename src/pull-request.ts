@@ -70,11 +70,11 @@ export async function createPullRequest(
     }
 
     // Create a new branch name that includes the config id and the current timestamp to make it unique
-    const newBranchName = `${config.id}/${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`
+    const newBranchName = `${config.id}-${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`
     const newBranchRef = `refs/heads/${newBranchName}`
 
     console.info(
-      `No existing PRs found for '${config.id}/**'. Creating a new PR '${newBranchRef}'`
+      `No existing PRs found for '${config.id}-*'. Creating a new PR '${newBranchRef}'`
     )
 
     // Create a new branch
@@ -145,7 +145,7 @@ async function findExistingPullRequests(config: Config, octokit: Octokit) {
     state: 'open'
   })
 
-  return pullRequests.filter(pr => pr.head.ref.startsWith(`${config.id}/`))
+  return pullRequests.filter(pr => pr.head.ref.startsWith(`${config.id}-`))
 }
 
 interface FileToUpdate {
