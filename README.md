@@ -30,14 +30,10 @@ subgraph Application Repositories
   D[App Repo 3]
 end
 
-subgraph GitHub Actions
-  E[GitOps Auto-Update Action]
-end
-
-B --> E[New Release Trigger]
-C --> E[New Release Trigger]
-D --> E[New Release Trigger]
-E --> A[Updates Version Referenc
+B --> A[New Release Trigger]
+C --> A[New Release Trigger]
+D --> A[New Release Trigger]
+A --> GitHub[New PR]
 ```
 
 Pull requests are created when a new release is detected in the source
