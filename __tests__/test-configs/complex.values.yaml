@@ -3,6 +3,6 @@ images:
   - name: image.test1
     value: test1
   - name: image.tag
-    value: v0.5.0
+    value: v1.1.6
   - name: image.test2
     value: test2
