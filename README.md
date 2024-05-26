@@ -6,16 +6,17 @@
 [![CodeQL](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml)
 [![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
 
-This GitHub Action streamlines your GitOps workflow by automating the process of updating version references within your GitOps configuration repository. 
-By creating pull requests (PRs) with updated versions, it helps maintain consistency and reduces manual intervention.
+This GitHub Action streamlines your GitOps workflow by automating the process of
+updating version references within your GitOps configuration repository. By
+creating pull requests (PRs) with updated versions, it helps maintain
+consistency and reduces manual intervention.
 
-A pull request is automatically created against the GitOps repository, 
-containing the updated version references. 
-This PR is ready for review and merging into your main branch, triggering 
-your GitOps reconciliation process.
+A pull request is automatically created against the GitOps repository,
+containing the updated version references. This PR is ready for review and
+merging into your main branch, triggering your GitOps reconciliation process.
 
-To leverage this action, you need a central GitOps repository 
-where your environment-specific configurations are stored.
+To leverage this action, you need a central GitOps repository where your
+environment-specific configurations are stored.
 
 ```mermaid
 graph TD
@@ -39,14 +40,15 @@ D --> E[New Release Trigger]
 E --> A[Updates Version Referenc
 ```
 
-
-Pull requests are created when a new release is detected in the source repositories with changes history.
-![pr.png](docs/pr.png)
+Pull requests are created when a new release is detected in the source
+repositories with changes history. ![pr.png](docs/pr.png)
 
 ## Usage
 
 ### Create a config file in your GitOps config repository
-You can create multiple config files in your GitOps repository, each containing different references to the source repositories and other parameters
+
+You can create multiple config files in your GitOps repository, each containing
+different references to the source repositories and other parameters
 
 ```yaml
 # Unique identifier for the configuration, important to have unique ids for each configuration and it will be used to create branch names
@@ -70,19 +72,22 @@ sourceRepos:
         # Regex to both match and replace the version in the file
         # The regex leverages lookbehind and lookahead assertions to match the version string and replace it
         regex: '(?<=(tag: ))[a-f0-9]{40}(?=(.*))'
-
 ```
 
-This configuration file will monitor the `abdolence/gitops-pr-automator` repository for new releases on the `master` branch. 
-When a new release is detected, the action will create a PR in the GitOps config repository with the updated version 
-references in the `*.values.yaml` files in GitOps config repository.
+This configuration file will monitor the `abdolence/gitops-pr-automator`
+repository for new releases on the `master` branch. When a new release is
+detected, the action will create a PR in the GitOps config repository with the
+updated version references in the `*.values.yaml` files in GitOps config
+repository.
 
-Pay attention to the `regex` field in the configuration file which describes both:
+Pay attention to the `regex` field in the configuration file which describes
+both:
+
 - How to match the version string in the file
 - How to replace the version string in the file
 
-In this example, the action will look for a string of 40 hexadecimal characters following `tag: ` and replace it 
-with the new version.
+In this example, the action will look for a string of 40 hexadecimal characters
+following `tag: ` and replace it with the new version.
 
 ### Create a GitHub Action workflow in your GitOps config repository
 
@@ -98,14 +103,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  create-pr:    
+  create-pr:
     name: Create a PR with updated version references
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
       pull-requests: write
-      
+
     steps:
       - name: Checkout
         id: checkout
@@ -117,13 +122,12 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           config-path: '.github/gitops/gitops-pr-automator-config.yaml'
-
 ```
-
 
 ### Trigger the action from your source repositories
 
-Update the source repositories to trigger the action when a new release is detected with this step.
+Update the source repositories to trigger the action when a new release is
+detected with this step.
 
 ```yaml
       - name: Trigger GitOps PR automation
