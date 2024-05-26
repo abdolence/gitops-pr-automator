@@ -40462,13 +40462,14 @@ async function createPullRequest(config, allRepoChanges, octokit) {
     }
 }
 exports.createPullRequest = createPullRequest;
-async function getFileSha(octokit, path) {
+async function getFileSha(octokit, path, branchName) {
     const gitOpsRepo = github.context.repo;
     try {
         const response = await octokit.rest.repos.getContent({
             owner: gitOpsRepo.owner,
             repo: gitOpsRepo.repo,
-            path
+            path,
+            ref: branchName
         });
         return response.data.sha; // Type assertion is needed
     }
@@ -40508,7 +40509,7 @@ async function commitChanges(octokit, branchName, allRepoChanges) {
         }
     }
     for (const fileToUpdate of filesToUpdate.values()) {
-        const fileSha = await getFileSha(octokit, fileToUpdate.gitPath);
+        const fileSha = await getFileSha(octokit, fileToUpdate.gitPath, branchName);
         console.debug(`Updating file ${fileToUpdate.gitPath} with new version ${fileToUpdate.currentVersion} with sha ${fileSha}`);
         await octokit.rest.repos.createOrUpdateFileContents({
             owner: gitOpsRepo.owner,

@@ -110,14 +110,16 @@ export async function createPullRequest(
 
 async function getFileSha(
   octokit: Octokit,
-  path: string
+  path: string,
+  branchName: string
 ): Promise<string | undefined> {
   const gitOpsRepo = github.context.repo
   try {
     const response = await octokit.rest.repos.getContent({
       owner: gitOpsRepo.owner,
       repo: gitOpsRepo.repo,
-      path
+      path,
+      ref: branchName
     })
     return (response.data as any).sha // Type assertion is needed
   } catch (error) {
@@ -174,7 +176,7 @@ async function commitChanges(
   }
 
   for (const fileToUpdate of filesToUpdate.values()) {
-    const fileSha = await getFileSha(octokit, fileToUpdate.gitPath)
+    const fileSha = await getFileSha(octokit, fileToUpdate.gitPath, branchName)
     console.debug(
       `Updating file ${fileToUpdate.gitPath} with new version ${fileToUpdate.currentVersion} with sha ${fileSha}`
     )
