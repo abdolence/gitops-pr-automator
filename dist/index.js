@@ -40140,7 +40140,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.findChangesInSourceRepo = void 0;
 const versions_finder_1 = __nccwpck_require__(6563);
 const core = __importStar(__nccwpck_require__(2186));
-async function findChangesInSourceRepo(sourceRepo, octokit) {
+async function findChangesInSourceRepo(config, sourceRepo, octokit) {
     const repoVersions = await (0, versions_finder_1.findVersions)(sourceRepo.releaseFiles || []);
     core.info(`Found versions: [${repoVersions.map(ver => ver.version).join(', ')}] for '${sourceRepo.repo}'`);
     const [owner, repo] = sourceRepo.repo.split('/');
@@ -40150,8 +40150,33 @@ async function findChangesInSourceRepo(sourceRepo, octokit) {
         repo: repo,
         ref: sourceRepo.ref || 'heads/master'
     });
-    const currentVersion = refData.object.sha;
-    core.info(`Current version in ${sourceRepo.repo} is ${currentVersion}`);
+    const currentVersionSha = refData.object.sha;
+    let currentVersion = currentVersionSha;
+    if (config.versioning?.scheme === 'commit-tags-or-sha' ||
+        config.versioning?.scheme === 'commit-tags-only') {
+        console.debug(`Getting the current version tag of ${sourceRepo.repo} at ${currentVersionSha}`);
+        // Check for git tags that match the current version SHA
+        const { data: tagsData } = await octokit.rest.git.listMatchingRefs({
+            owner: owner,
+            repo: repo,
+            ref: `tags`
+        });
+        const tagsMatchRegex = config.versioning.resolveTagsPattern
+            ? new RegExp(config.versioning.resolveTagsPattern)
+            : /refs\/tags\/v\d+\.\d+\.\d+/;
+        const suitableTags = tagsData
+            .filter(tag => tag.object.sha === currentVersionSha)
+            .filter(tag => tagsMatchRegex.test(tag.ref));
+        console.debug(`Found: ${suitableTags.length}/${tagsData.length} suitable tags at ${currentVersionSha} according to the pattern: ${tagsMatchRegex.source} for ${sourceRepo.repo}`);
+        if (suitableTags.length > 0) {
+            currentVersion = suitableTags[0].ref.replace('refs/tags/', '');
+        }
+        if (config.versioning.scheme === 'commit-tags-only' &&
+            suitableTags.length === 0) {
+            return undefined;
+        }
+    }
+    core.info(`Current version in ${sourceRepo.repo} is ${currentVersion}. Sha: ${currentVersionSha}`);
     const repoVersionsToUpdate = repoVersions.filter(ver => ver.version !== currentVersion);
     if (repoVersionsToUpdate.length === 0) {
         core.info(`No new version found for ${sourceRepo.repo}`);
@@ -40165,7 +40190,7 @@ async function findChangesInSourceRepo(sourceRepo, octokit) {
                 owner,
                 repo,
                 base: ver.version, // Older commit
-                head: currentVersion // Newer commit
+                head: currentVersionSha // Newer commit
             }, response => response.data.commits);
             for (const commit of commits) {
                 if (!relevantCommits.find(c => c.sha === commit.sha)) {
@@ -40176,7 +40201,8 @@ async function findChangesInSourceRepo(sourceRepo, octokit) {
         return {
             sourceRepo,
             repoVersionsToUpdate,
-            currentVersion,
+            currentVersion: currentVersion,
+            currentVersionSha: currentVersionSha,
             commits: relevantCommits
         };
     }
@@ -40234,7 +40260,7 @@ const sourceRepoConfigSchema = z.object({
     ref: z.string().optional(),
     releaseFiles: z.array(releaseFileConfigSchema).optional()
 });
-const MergeStrategiesSchema = z.union([
+const mergeStrategiesSchema = z.union([
     z.literal('squash'),
     z.literal('rebase'),
     z.literal('merge'),
@@ -40244,14 +40270,24 @@ const MergeStrategiesSchema = z.union([
 const pullRequestSchema = z.object({
     title: z.string(),
     githubLabels: z.array(z.string()).optional(),
-    enableAutoMerge: MergeStrategiesSchema,
+    enableAutoMerge: mergeStrategiesSchema,
     pullRequestComment: z.string().optional(),
     cleanupExistingAutomatorBranches: z.boolean().optional()
+});
+const versioningSchemeSchema = z.union([
+    z.literal('commit-sha-only'),
+    z.literal('commit-tags-or-sha'),
+    z.literal('commit-tags-only')
+]);
+const versioningSchema = z.object({
+    scheme: versioningSchemeSchema,
+    resolveTagsPattern: z.string().optional()
 });
 // Main Config schema
 exports.configSchema = z.object({
     id: z.string(),
     pullRequest: pullRequestSchema,
+    versioning: versioningSchema.optional(),
     sourceRepos: z.array(sourceRepoConfigSchema)
 });
 async function loadConfigFromYaml(configPath) {
@@ -40328,7 +40364,7 @@ async function run() {
         }
         const allRepoChanges = [];
         for (const sourceRepo of config.sourceRepos) {
-            const repoChanges = await (0, changes_1.findChangesInSourceRepo)(sourceRepo, repoAccessOctokit);
+            const repoChanges = await (0, changes_1.findChangesInSourceRepo)(config, sourceRepo, repoAccessOctokit);
             if (repoChanges) {
                 allRepoChanges.push(repoChanges);
             }
