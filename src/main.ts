@@ -46,13 +46,11 @@ export async function run(): Promise<void> {
         `Found changes in ${allRepoChanges.length} source repos. Creating a new PR`
       )
       await createPullRequest(config, allRepoChanges, octokit)
+      core.setOutput(
+        'detected-changes',
+        allRepoChanges.map(c => c.sourceRepo.repo).join(', ')
+      )
     }
-
-    // Log the current timestamp
-    core.debug(new Date().toTimeString())
-
-    // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof z.ZodError) {
