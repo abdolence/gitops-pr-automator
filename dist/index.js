@@ -40306,7 +40306,7 @@ const pull_request_1 = __nccwpck_require__(4773);
  */
 async function run() {
     try {
-        core.info(`Running GitOps PR Automator ...`);
+        core.info(`Running GitOps PR Automator (https://github.com/abdolence/gitops-pr-automator) ...`);
         const configPath = core.getInput('config-path') ||
             '.github/gitops/gitops-pr-automator.config.yaml';
         core.info(`Loading configuration from ${configPath}`);

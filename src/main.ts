@@ -12,7 +12,9 @@ import { createPullRequest } from './pull-request'
  */
 export async function run(): Promise<void> {
   try {
-    core.info(`Running GitOps PR Automator ...`)
+    core.info(
+      `Running GitOps PR Automator (https://github.com/abdolence/gitops-pr-automator) ...`
+    )
 
     const configPath: string =
       core.getInput('config-path') ||
