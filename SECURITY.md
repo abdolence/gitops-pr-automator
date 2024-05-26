@@ -2,8 +2,8 @@
 
 ## Reporting a Vulnerability
 
-Please follow general guidelines defined here:
-https://cheatsheetseries.owasp.org/cheatsheets/Vulnerability_Disclosure_Cheat_Sheet.html
+Please follow general guidelines defined on [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Vulnerability_Disclosure_Cheat_Sheet.html).
+
 
 ## Contacts
 
