@@ -41,8 +41,7 @@ jobs:
         uses: super-linter/super-linter/slim@v6
         env:
           DEFAULT_BRANCH: master
-          FILTER_REGEX_EXCLUDE:
-            dist/**/*, SECURITY.md, COPYRIGHT.md, SECURITY.md
+          FILTER_REGEX_EXCLUDE: dist/**/*
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TYPESCRIPT_DEFAULT_STYLE: prettier
           VALIDATE_ALL_CODEBASE: true
