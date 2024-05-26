@@ -121,7 +121,9 @@ jobs:
         id: create-pr
         uses: abdolence/gitops-pr-automator@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # GitHub token with permissions to read the source repositories
+          # and create PRs in this one
+          github-token: ${{ secrets.GH_AUTOMATION_TOKEN }}
           config-path: '.github/gitops/gitops-pr-automator.config.yaml'
 ```
 
@@ -135,6 +137,7 @@ detected with this step.
         if: github.ref_protected
         uses: actions/github-script@v6
         with:
+          # GitHub token with permissions to trigger workflows in the GitOps
           github-token: ${{ secrets.GH_TRIGGER_WORKFLOWS }}
           script: |
             await github.rest.actions.createWorkflowDispatch({
@@ -144,6 +147,17 @@ detected with this step.
              ref: 'master'
           })
 ```
+
+## Security
+
+This action uses the GitHub token provided to create pull requests and also read
+commit history. Ensure that the token has the necessary permissions to create
+pull requests and read commit history.
+
+To reduce the surface the plugin uses GitHub Actions Toolkit to ensure the code
+is secure. Also used dependencies in the code are minimal and the code is
+written in TypeScript (so, no binary is executed), and also it is easier to
+audit.
 
 ## Licence
 
