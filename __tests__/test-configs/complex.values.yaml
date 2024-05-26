@@ -1,0 +1,8 @@
+someKey: someValue
+images:
+  - name: image.test1
+    value: test1
+  - name: image.tag
+    value: bc37b267a3733d58052eba1a855605942b4883ff
+  - name: image.test2
+    value: test2
