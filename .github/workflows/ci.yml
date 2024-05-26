@@ -44,8 +44,6 @@ jobs:
       - name: Test
         id: npm-ci-test
         run: npm run ci-test
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   test-action:
     name: GitHub Actions Test
@@ -64,4 +62,4 @@ jobs:
 
       - name: Print Output
         id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+        run: echo "${{ steps.test-action.outputs.detected-changes }}"
