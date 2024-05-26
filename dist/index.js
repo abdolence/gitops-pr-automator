@@ -40142,7 +40142,7 @@ const versions_finder_1 = __nccwpck_require__(6563);
 const core = __importStar(__nccwpck_require__(2186));
 async function findChangesInSourceRepo(sourceRepo, octokit) {
     const repoVersions = await (0, versions_finder_1.findVersions)(sourceRepo.releaseFiles || []);
-    core.info(`Found version: [${repoVersions.map(ver => ver.version).join(', ')}] for '${sourceRepo.repo}'`);
+    core.info(`Found versions: [${repoVersions.map(ver => ver.version).join(', ')}] for '${sourceRepo.repo}'`);
     const [owner, repo] = sourceRepo.repo.split('/');
     console.debug(`Getting the current version of ${sourceRepo.repo}`);
     const { data: refData } = await octokit.rest.git.getRef({
@@ -40399,6 +40399,7 @@ async function createPullRequest(config, allRepoChanges, octokit) {
         ref: `heads/${defaultBranch}`
     });
     console.info(`Default branch ref for ${gitOpsRepo.owner}/${gitOpsRepo.repo} is ${refData.object.sha}`);
+    const prTitle = config.pullRequest.title;
     const prSummaryText = await generatePrSummaryText(config, allRepoChanges);
     // Find existing PRs
     const existingPRs = await findExistingPullRequests(config, octokit);
@@ -40438,7 +40439,7 @@ async function createPullRequest(config, allRepoChanges, octokit) {
         const response = await octokit.rest.pulls.create({
             owner: gitOpsRepo.owner,
             repo: gitOpsRepo.repo,
-            title: config.pullRequest.title,
+            title: prTitle,
             head: newBranchName,
             base: defaultBranch,
             body: prSummaryText
@@ -40623,7 +40624,7 @@ async function findVersions(releaseFiles) {
             for (const matched of matchedArray) {
                 if (matched && matched[0] && matched[0].trim().length > 0) {
                     const version = matched[0].trim();
-                    console.debug(`Found version: ${version} in file: ${filePath}`);
+                    console.debug(`Found version: ${version} in a file: ${filePath}`);
                     const existing = results.get(version);
                     const gitPath = filePath
                         .replace(process.cwd(), '')
