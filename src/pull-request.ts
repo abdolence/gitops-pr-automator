@@ -58,8 +58,7 @@ export async function createPullRequest(
       body: prSummaryText
     })
 
-    await commitChanges(octokit, pullRequest.base.ref, allRepoChanges)
-
+    await commitChanges(octokit, pullRequest.head.ref, allRepoChanges)
   } else {
     if (config.pullRequest.cleanupExistingAutomatorBranches) {
       await removeAllAutomatorBranches(config, octokit)
