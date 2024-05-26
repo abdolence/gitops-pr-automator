@@ -30,12 +30,23 @@ export async function run(): Promise<void> {
       return
     }
 
-    const octokit = github.getOctokit(githubToken)
+    const defaultOctokit = github.getOctokit(githubToken)
+
+    let repoAccessOctokit = null
+    const githubTokenRepoAccess = core.getInput('github-token-repo-access')
+    if (githubTokenRepoAccess) {
+      repoAccessOctokit = github.getOctokit(githubTokenRepoAccess)
+    } else {
+      repoAccessOctokit = defaultOctokit
+    }
 
     const allRepoChanges: FoundChanges[] = []
 
     for (const sourceRepo of config.sourceRepos) {
-      const repoChanges = await findChangesInSourceRepo(sourceRepo, octokit)
+      const repoChanges = await findChangesInSourceRepo(
+        sourceRepo,
+        repoAccessOctokit
+      )
       if (repoChanges) {
         allRepoChanges.push(repoChanges)
       }
@@ -47,7 +58,7 @@ export async function run(): Promise<void> {
       core.info(
         `Found changes in ${allRepoChanges.length} source repos. Creating a new PR or updating an existing one.`
       )
-      await createPullRequest(config, allRepoChanges, octokit)
+      await createPullRequest(config, allRepoChanges, defaultOctokit)
       core.setOutput(
         'detected-changes',
         allRepoChanges.map(c => c.sourceRepo.repo).join(', ')

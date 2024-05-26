@@ -40316,10 +40316,18 @@ async function run() {
             core.setFailed('GitHub token not provided. Please specify the `github-token` input.');
             return;
         }
-        const octokit = github.getOctokit(githubToken);
+        const defaultOctokit = github.getOctokit(githubToken);
+        let repoAccessOctokit = null;
+        const githubTokenRepoAccess = core.getInput('github-token-repo-access');
+        if (githubTokenRepoAccess) {
+            repoAccessOctokit = github.getOctokit(githubTokenRepoAccess);
+        }
+        else {
+            repoAccessOctokit = defaultOctokit;
+        }
         const allRepoChanges = [];
         for (const sourceRepo of config.sourceRepos) {
-            const repoChanges = await (0, changes_1.findChangesInSourceRepo)(sourceRepo, octokit);
+            const repoChanges = await (0, changes_1.findChangesInSourceRepo)(sourceRepo, repoAccessOctokit);
             if (repoChanges) {
                 allRepoChanges.push(repoChanges);
             }
@@ -40329,7 +40337,7 @@ async function run() {
         }
         else {
             core.info(`Found changes in ${allRepoChanges.length} source repos. Creating a new PR or updating an existing one.`);
-            await (0, pull_request_1.createPullRequest)(config, allRepoChanges, octokit);
+            await (0, pull_request_1.createPullRequest)(config, allRepoChanges, defaultOctokit);
             core.setOutput('detected-changes', allRepoChanges.map(c => c.sourceRepo.repo).join(', '));
         }
     }
