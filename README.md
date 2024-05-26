@@ -117,12 +117,12 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
-      - name: Test Local Action
-        id: test-action
+      - name: Create GitOps PR
+        id: create-pr
         uses: abdolence/gitops-pr-automator@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          config-path: '.github/gitops/gitops-pr-automator-config.yaml'
+          config-path: '.github/gitops/gitops-pr-automator.config.yaml'
 ```
 
 ### Trigger the action from your source repositories
