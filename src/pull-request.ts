@@ -58,7 +58,7 @@ export async function createPullRequest(
       body: prSummaryText
     })
   } else {
-    if(config.pullRequest.cleanupExistingAutomatorBranches) {
+    if (config.pullRequest.cleanupExistingAutomatorBranches) {
       await removeAllAutomatorBranches(config, octokit)
     }
 
