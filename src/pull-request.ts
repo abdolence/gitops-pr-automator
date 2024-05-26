@@ -58,7 +58,12 @@ export async function createPullRequest(
       body: prSummaryText
     })
 
-    await commitChanges(octokit, pullRequest.head.ref, allRepoChanges)
+    await commitChanges(
+      octokit,
+      pullRequest.head.ref,
+      allRepoChanges,
+      pullRequest.head.ref
+    )
   } else {
     if (config.pullRequest.cleanupExistingAutomatorBranches) {
       await removeAllAutomatorBranches(config, octokit)
@@ -77,7 +82,7 @@ export async function createPullRequest(
       sha: refData.object.sha
     })
 
-    await commitChanges(octokit, newBranchName, allRepoChanges)
+    await commitChanges(octokit, newBranchName, allRepoChanges, defaultBranch)
 
     const response = await octokit.rest.pulls.create({
       owner: gitOpsRepo.owner,
@@ -149,7 +154,8 @@ interface FileToUpdate {
 async function commitChanges(
   octokit: Octokit,
   branchName: string,
-  allRepoChanges: FoundChanges[]
+  allRepoChanges: FoundChanges[],
+  compareBranch: string
 ): Promise<void> {
   console.info(`Committing changes to branch ${branchName}`)
   const gitOpsRepo = github.context.repo
@@ -176,7 +182,11 @@ async function commitChanges(
   }
 
   for (const fileToUpdate of filesToUpdate.values()) {
-    const fileSha = await getFileSha(octokit, fileToUpdate.gitPath, branchName)
+    const fileSha = await getFileSha(
+      octokit,
+      fileToUpdate.gitPath,
+      compareBranch
+    )
     console.debug(
       `Updating file ${fileToUpdate.gitPath} with new version ${fileToUpdate.currentVersion} with sha ${fileSha}`
     )
