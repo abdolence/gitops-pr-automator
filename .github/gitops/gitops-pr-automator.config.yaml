@@ -13,7 +13,7 @@ sourceRepos:
   - repo: abdolence/gitops-pr-automator
     ref: heads/master
     releaseFiles:
-      - path: '**/*.values.yaml'
+      - path: '**/__tests__/test-configs/*.values.yaml'
         regex:
           - '(?<=(tag: ))[a-f0-9]{40}(?=(.*))'
           - '(?<=(image.tag\n(\s)*value:\s))[a-f0-9]{40}(?=(.*))'
