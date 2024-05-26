@@ -5,6 +5,7 @@ import * as z from 'zod'
 import { loadConfigFromYaml } from './config'
 import { findChangesInSourceRepo, FoundChanges } from './changes'
 import { createPullRequest } from './pull-request'
+import { RequestError } from '@octokit/request-error'
 
 /**
  * The main function for the action.
@@ -69,6 +70,9 @@ export async function run(): Promise<void> {
     if (error instanceof z.ZodError) {
       console.error(error.errors) // Detailed validation errors
       core.setFailed(error.errors.toString())
+    } else if (error instanceof RequestError) {
+      console.error(error)
+      core.setFailed(error.message)
     } else if (error instanceof Error) {
       console.error(error.message)
       core.setFailed(error.message)
