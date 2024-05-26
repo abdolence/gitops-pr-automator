@@ -6,7 +6,9 @@ pullRequest:
     - gitops-test
   enableAutoMerge: 'squash'
   pullRequestComment:
-    'This PR was automatically created by the GitOps PR Automator.\nPlease review the changes and merge if they look good.\n\n'
+    'This PR was automatically created by the GitOps PR Automator.\nPlease
+    review the changes and merge if they look good.\n\n'
+  cleanupExistingAutomatorBranches: true
 sourceRepos:
   - repo: abdolence/gitops-pr-automator
     ref: heads/master

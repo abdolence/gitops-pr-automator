@@ -58,7 +58,9 @@ export async function createPullRequest(
       body: prSummaryText
     })
   } else {
-    await removeAllAutomatorBranches(config, octokit)
+    if(config.pullRequest.cleanupExistingAutomatorBranches) {
+      await removeAllAutomatorBranches(config, octokit)
+    }
 
     console.info(`No existing PRs found for ${config.id}. Creating a new PR`)
     // Create a new branch name that includes the config id and the current timestamp to make it unique

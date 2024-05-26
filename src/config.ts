@@ -35,7 +35,8 @@ const pullRequestSchema = z.object({
   title: z.string(),
   githubLabels: z.array(z.string()).optional(),
   enableAutoMerge: MergeStrategiesSchema,
-  pullRequestComment: z.string().optional()
+  pullRequestComment: z.string().optional(),
+  cleanupExistingAutomatorBranches: z.boolean().optional()
 })
 
 // Main Config schema
