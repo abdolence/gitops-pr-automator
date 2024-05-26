@@ -45,7 +45,7 @@ export async function run(): Promise<void> {
       core.info('No changes found in any of the source repos')
     } else {
       core.info(
-        `Found changes in ${allRepoChanges.length} source repos. Creating a new PR`
+        `Found changes in ${allRepoChanges.length} source repos. Creating a new PR or updating an existing one.`
       )
       await createPullRequest(config, allRepoChanges, octokit)
       core.setOutput(

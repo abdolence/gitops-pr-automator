@@ -57,6 +57,9 @@ export async function createPullRequest(
       issue_number: pullRequest.number,
       body: prSummaryText
     })
+
+    await commitChanges(octokit, pullRequest.base.ref, allRepoChanges)
+
   } else {
     if (config.pullRequest.cleanupExistingAutomatorBranches) {
       await removeAllAutomatorBranches(config, octokit)

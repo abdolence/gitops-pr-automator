@@ -6,7 +6,7 @@ import * as yaml from 'js-yaml'
 const releaseFileConfigSchema = z.object({
   path: z.string(),
   ignore: z.string().optional(),
-  regex: z.string()
+  regex: z.array(z.string())
 })
 
 export type ReleaseFileConfig = z.infer<typeof releaseFileConfigSchema>
