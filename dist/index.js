@@ -40509,7 +40509,7 @@ async function createPullRequest(config, allRepoChanges, octokit) {
     }
 }
 exports.createPullRequest = createPullRequest;
-async function getFileSha(octokit, path, branchName) {
+async function getFileContent(octokit, path, branchName) {
     const gitOpsRepo = github.context.repo;
     try {
         const response = await octokit.rest.repos.getContent({
@@ -40518,7 +40518,7 @@ async function getFileSha(octokit, path, branchName) {
             path,
             ref: branchName
         });
-        return response.data.sha; // Type assertion is needed
+        return response.data;
     }
     catch (error) {
         if (error instanceof request_error_1.RequestError && error.status === 404)
@@ -40556,17 +40556,24 @@ async function commitChanges(octokit, branchName, allRepoChanges, compareBranch)
         }
     }
     for (const fileToUpdate of filesToUpdate.values()) {
-        const fileSha = await getFileSha(octokit, fileToUpdate.gitPath, compareBranch);
-        console.debug(`Updating file ${fileToUpdate.gitPath} with new version ${fileToUpdate.currentVersion} with sha ${fileSha}`);
-        await octokit.rest.repos.createOrUpdateFileContents({
-            owner: gitOpsRepo.owner,
-            repo: gitOpsRepo.repo,
-            path: fileToUpdate.gitPath,
-            message: `chore(release): Update ${fileToUpdate.gitPath} to ${fileToUpdate.currentVersion}`,
-            content: Buffer.from(fileToUpdate.content).toString('base64'),
-            branch: branchName,
-            sha: fileSha
-        });
+        const existingFileContent = await getFileContent(octokit, fileToUpdate.gitPath, compareBranch);
+        const fileBase64Content = Buffer.from(fileToUpdate.content).toString('base64');
+        if (!existingFileContent ||
+            fileBase64Content !== existingFileContent?.content?.replace(/\n/g, '')) {
+            console.debug(`Updating file ${fileToUpdate.gitPath} with new version ${fileToUpdate.currentVersion} with sha ${existingFileContent?.sha} (from ${compareBranch}).`);
+            await octokit.rest.repos.createOrUpdateFileContents({
+                owner: gitOpsRepo.owner,
+                repo: gitOpsRepo.repo,
+                path: fileToUpdate.gitPath,
+                message: `chore(release): Update ${fileToUpdate.gitPath} to ${fileToUpdate.currentVersion}`,
+                content: fileBase64Content,
+                branch: branchName,
+                sha: existingFileContent?.sha
+            });
+        }
+        else {
+            console.debug(`File ${fileToUpdate.gitPath} has not changed since last commit`);
+        }
     }
 }
 async function removeAllAutomatorBranches(config, octokit) {
