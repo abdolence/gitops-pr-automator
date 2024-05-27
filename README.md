@@ -108,9 +108,9 @@ jobs:
     name: Create a PR with updated version references
     runs-on: ubuntu-latest
 
+    # These permissions are sufficient only if GitHub App token is used.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
 
     steps:
       - name: Checkout
@@ -152,6 +152,14 @@ detected with this step.
              ref: 'master'
           })
 ```
+
+## GitHub tokens
+
+Recommend way to use the GitHub token is to create a separate GitHub
+application, following this
+[guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/making-authenticated-api-requests-with-a-github-app-in-a-github-actions-workflow).
+In this case you can restrict the application to the particular repositories and
+scope.
 
 ## Versioning schemes
 
