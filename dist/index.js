@@ -40263,14 +40263,13 @@ const sourceRepoConfigSchema = z.object({
 const mergeStrategiesSchema = z.union([
     z.literal('squash'),
     z.literal('rebase'),
-    z.literal('merge'),
-    z.literal(undefined)
+    z.literal('merge')
 ]);
 // Schema for PullRequest
 const pullRequestSchema = z.object({
     title: z.string(),
     githubLabels: z.array(z.string()).optional(),
-    enableAutoMerge: mergeStrategiesSchema,
+    enableAutoMerge: mergeStrategiesSchema.optional(),
     pullRequestComment: z.string().optional(),
     cleanupExistingAutomatorBranches: z.boolean().optional()
 });
@@ -40453,10 +40452,9 @@ async function createPullRequest(config, allRepoChanges, octokit) {
     const prSummaryText = await generatePrSummaryText(config, allRepoChanges);
     // Find existing PRs
     const existingPRs = await findExistingPullRequests(config, octokit);
-    let pullRequest = undefined;
     if (existingPRs.length > 0) {
         console.info(`Found ${existingPRs.length} existing PRs for ${config.id}`);
-        pullRequest = existingPRs[0];
+        const pullRequest = existingPRs[0];
         // Merge the PR
         await octokit.rest.repos.merge({
             owner: gitOpsRepo.owner,
@@ -40497,17 +40495,17 @@ async function createPullRequest(config, allRepoChanges, octokit) {
             base: defaultBranch,
             body: prSummaryText
         });
-        pullRequest = response.data;
-    }
-    // Add labels to the PR
-    await octokit.rest.issues.addLabels({
-        owner: gitOpsRepo.owner,
-        repo: gitOpsRepo.repo,
-        issue_number: pullRequest.number,
-        labels: config.pullRequest.githubLabels
-    });
-    if (config.pullRequest.enableAutoMerge) {
-        await enableAutoMerge(octokit, pullRequest.number, config.pullRequest.enableAutoMerge);
+        const pullRequest = response.data;
+        // Add labels to the PR
+        await octokit.rest.issues.addLabels({
+            owner: gitOpsRepo.owner,
+            repo: gitOpsRepo.repo,
+            issue_number: pullRequest.number,
+            labels: config.pullRequest.githubLabels
+        });
+        if (config.pullRequest.enableAutoMerge) {
+            await enableAutoMergeOnPR(octokit, pullRequest.node_id, config.pullRequest.enableAutoMerge);
+        }
     }
 }
 exports.createPullRequest = createPullRequest;
@@ -40592,20 +40590,24 @@ async function removeAllAutomatorBranches(config, octokit) {
         }
     }
 }
-async function enableAutoMerge(octokit, pullNumber, mergeMethod = 'merge') {
-    const gitOpsRepo = github.context.repo;
+async function enableAutoMergeOnPR(octokit, pullRequestId, mergeMethod) {
     try {
-        const response = await octokit.rest.pulls.update({
-            owner: gitOpsRepo.owner,
-            repo: gitOpsRepo.repo,
-            pull_number: pullNumber,
-            auto_merge: true,
-            merge_method: mergeMethod
-        });
-        console.log('Auto-merge enabled:', response.data.auto_merge);
+        // Enable auto-merge
+        await octokit.graphql(`
+      mutation enableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+        enablePullRequestAutoMerge(input: {
+          pullRequestId: $pullRequestId,
+          mergeMethod: $mergeMethod
+        }) {
+          clientMutationId
+        }
+      }
+    `, { pullRequestId: pullRequestId, mergeMethod: mergeMethod.toUpperCase() });
+        console.log(`Auto-merge enabled for PR #${pullRequestId}`);
     }
     catch (error) {
         console.error('Error enabling auto-merge:', error);
+        throw error; // Or handle the error gracefully
     }
 }
 async function generatePrSummaryText(config, allRepoChanges) {

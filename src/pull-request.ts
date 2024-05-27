@@ -1,4 +1,4 @@
-import { Config } from './config'
+import { Config, MergeStrategies } from './config'
 import * as github from '@actions/github'
 import { RequestError } from '@octokit/request-error'
 import { FoundChanges } from './changes'
@@ -37,10 +37,9 @@ export async function createPullRequest(
   // Find existing PRs
   const existingPRs = await findExistingPullRequests(config, octokit)
 
-  let pullRequest = undefined
   if (existingPRs.length > 0) {
     console.info(`Found ${existingPRs.length} existing PRs for ${config.id}`)
-    pullRequest = existingPRs[0]
+    const pullRequest = existingPRs[0]
 
     // Merge the PR
     await octokit.rest.repos.merge({
@@ -96,23 +95,23 @@ export async function createPullRequest(
       body: prSummaryText
     })
 
-    pullRequest = response.data
-  }
+    const pullRequest = response.data
 
-  // Add labels to the PR
-  await octokit.rest.issues.addLabels({
-    owner: gitOpsRepo.owner,
-    repo: gitOpsRepo.repo,
-    issue_number: pullRequest.number,
-    labels: config.pullRequest.githubLabels
-  })
+    // Add labels to the PR
+    await octokit.rest.issues.addLabels({
+      owner: gitOpsRepo.owner,
+      repo: gitOpsRepo.repo,
+      issue_number: pullRequest.number,
+      labels: config.pullRequest.githubLabels
+    })
 
-  if (config.pullRequest.enableAutoMerge) {
-    await enableAutoMerge(
-      octokit,
-      pullRequest.number,
-      config.pullRequest.enableAutoMerge
-    )
+    if (config.pullRequest.enableAutoMerge) {
+      await enableAutoMergeOnPR(
+        octokit,
+        pullRequest.node_id,
+        config.pullRequest.enableAutoMerge
+      )
+    }
   }
 }
 
@@ -235,24 +234,31 @@ async function removeAllAutomatorBranches(
   }
 }
 
-async function enableAutoMerge(
+async function enableAutoMergeOnPR(
   octokit: Octokit,
-  pullNumber: number,
-  mergeMethod: 'merge' | 'squash' | 'rebase' = 'merge'
-) {
-  const gitOpsRepo = github.context.repo
+  pullRequestId: string,
+  mergeMethod: MergeStrategies
+): Promise<void> {
   try {
-    const response = await octokit.rest.pulls.update({
-      owner: gitOpsRepo.owner,
-      repo: gitOpsRepo.repo,
-      pull_number: pullNumber,
-      auto_merge: true,
-      merge_method: mergeMethod
-    })
+    // Enable auto-merge
+    await octokit.graphql(
+      `
+      mutation enableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+        enablePullRequestAutoMerge(input: {
+          pullRequestId: $pullRequestId,
+          mergeMethod: $mergeMethod
+        }) {
+          clientMutationId
+        }
+      }
+    `,
+      { pullRequestId: pullRequestId, mergeMethod: mergeMethod.toUpperCase() }
+    )
 
-    console.log('Auto-merge enabled:', response.data.auto_merge)
+    console.log(`Auto-merge enabled for PR #${pullRequestId}`)
   } catch (error) {
     console.error('Error enabling auto-merge:', error)
+    throw error // Or handle the error gracefully
   }
 }
 

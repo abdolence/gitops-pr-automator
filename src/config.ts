@@ -23,8 +23,7 @@ export type SourceRepoConfig = z.infer<typeof sourceRepoConfigSchema>
 const mergeStrategiesSchema = z.union([
   z.literal('squash'),
   z.literal('rebase'),
-  z.literal('merge'),
-  z.literal(undefined)
+  z.literal('merge')
 ])
 
 // TypeScript Type Inference
@@ -34,7 +33,7 @@ export type MergeStrategies = z.infer<typeof mergeStrategiesSchema>
 const pullRequestSchema = z.object({
   title: z.string(),
   githubLabels: z.array(z.string()).optional(),
-  enableAutoMerge: mergeStrategiesSchema,
+  enableAutoMerge: mergeStrategiesSchema.optional(),
   pullRequestComment: z.string().optional(),
   cleanupExistingAutomatorBranches: z.boolean().optional()
 })
