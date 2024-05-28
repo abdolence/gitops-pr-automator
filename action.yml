@@ -1,7 +1,6 @@
 name: 'GitOps PR Automator'
 description:
-  'Create PRs for GitOps version changes automatically for your GitHub
-  repositories.'
+  'Creates automatically Pull Requests to update versions in GitOps config repository.'
 author: 'Abdulla Abdurakhmanov'
 
 branding:
