@@ -304,12 +304,15 @@ async function generatePrSummaryText(
     prSummaryText += `| Version | Files |\n`
     prSummaryText += `| ------- | ----- |\n`
     for (const version of repoChanges.repoVersionsToUpdate) {
-      prSummaryText += `| [\`${version.version.slice(0, 9)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.version}) | ${version.files.map(f => f.gitPath).join(", ")} |\n`
+      prSummaryText += `| [\`${version.version.slice(0, 9)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.version}) | ${version.files.map(f => f.gitPath).join(', ')} |\n`
     }
 
     prSummaryText += `\n\n### :memo: Changes:\n`
     for (const commit of repoChanges.commits) {
-      const shortMessage = resolveAllPrRefs(commit.commit.message.split('\n')[0], repoChanges)
+      const shortMessage = resolveAllPrRefs(
+        commit.commit.message.split('\n')[0],
+        repoChanges
+      )
       prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`
     }
   }
@@ -322,7 +325,10 @@ function resolveAllPrRefs(message: string, repoChanges: FoundChanges) {
   if (!prRefs) return message
   for (const prRef of prRefs) {
     const prNumber = parseInt(prRef.substring(1))
-    message = message.replace(prRef, `https://github.com/${repoChanges.sourceRepo.repo}/pull/${prNumber}`)
+    message = message.replace(
+      prRef,
+      `https://github.com/${repoChanges.sourceRepo.repo}/pull/${prNumber}`
+    )
   }
   return message
 }

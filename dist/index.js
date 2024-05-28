@@ -40623,17 +40623,30 @@ async function generatePrSummaryText(config, allRepoChanges) {
     for (const repoChanges of allRepoChanges) {
         prSummaryText += `## ${repoChanges.sourceRepo.repo}\n\n`;
         prSummaryText += `### Versions:\n\n`;
-        prSummaryText += `\n\nUpdated to: [${repoChanges.currentVersion.slice(0, 9)}](https://github.com/${repoChanges.sourceRepo.repo}/commits/${repoChanges.currentVersion}).\nExisting versions:\n\n`;
+        prSummaryText += `\n\n :fast_forward: Updated to: [\`${repoChanges.currentVersion.slice(0, 9)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${repoChanges.currentVersion}).\n\nExisting versions:\n`;
+        prSummaryText += `| Version | Files |\n`;
+        prSummaryText += `| ------- | ----- |\n`;
         for (const version of repoChanges.repoVersionsToUpdate) {
-            prSummaryText += `- [${version.version.slice(0, 9)}](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.version})\n`;
+            prSummaryText += `| [\`${version.version.slice(0, 9)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.version}) | ${version.files.map(f => f.gitPath).join(', ')} |\n`;
         }
-        prSummaryText += `\n\n### Changes:\n\n`;
+        prSummaryText += `\n\n### :memo: Changes:\n`;
         for (const commit of repoChanges.commits) {
-            const shortMessage = commit.commit.message.split('\n')[0];
-            prSummaryText += `- [${commit.sha.slice(0, 8)}](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`;
+            const shortMessage = resolveAllPrRefs(commit.commit.message.split('\n')[0], repoChanges);
+            prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`;
         }
     }
     return prSummaryText;
+}
+// Resolve all PR references in a string to their full URLs
+function resolveAllPrRefs(message, repoChanges) {
+    const prRefs = message.match(/#[0-9]+/g);
+    if (!prRefs)
+        return message;
+    for (const prRef of prRefs) {
+        const prNumber = parseInt(prRef.substring(1));
+        message = message.replace(prRef, `https://github.com/${repoChanges.sourceRepo.repo}/pull/${prNumber}`);
+    }
+    return message;
 }
 
 
