@@ -1,6 +1,7 @@
 name: 'GitOps PR Automator'
 description:
-  'Creates automatically Pull Requests to update versions in GitOps config repository.'
+  'Creates automatically Pull Requests to update versions in GitOps config
+  repository.'
 author: 'Abdulla Abdurakhmanov'
 
 branding:
