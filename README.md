@@ -63,7 +63,8 @@ pullRequest:
   commitHistory:
     disable: false # You can disable commit history in the PR
     onlyMergeCommits: false # You can include only merge commits in the PR
-# You can define regex patterns for all repositories and override them for specific repositories
+# You can define regex patterns for all repositories and
+# override them for specific repositories
 # regex:
 #  - '(?<=(tag: ))[a-f0-9]{40}(?=(.*))'
 # Source repositories to monitor for new releases
