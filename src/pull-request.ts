@@ -309,13 +309,15 @@ async function generatePrSummaryText(
       }
     }
 
-    prSummaryText += `\n\n### :memo: Changes:\n`
-    for (const commit of repoChanges.commits) {
-      const shortMessage = resolveAllPrRefs(
-        commit.commit.message.split('\n')[0],
-        repoChanges
-      )
-      prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`
+    if (!config.pullRequest.commitHistory?.disable) {
+      prSummaryText += `\n\n### :memo: Changes:\n`
+      for (const commit of repoChanges.commits) {
+        const shortMessage = resolveAllPrRefs(
+          commit.commit.message.split('\n')[0],
+          repoChanges
+        )
+        prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`
+      }
     }
   }
   return prSummaryText
