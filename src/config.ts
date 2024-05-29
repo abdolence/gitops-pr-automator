@@ -26,6 +26,11 @@ const mergeStrategiesSchema = z.union([
   z.literal('merge')
 ])
 
+const pullRequestCommitHistorySchema = z.object({
+  disable: z.boolean().optional(),
+  onlyMergeCommits: z.boolean().optional()
+})
+
 // TypeScript Type Inference
 export type MergeStrategies = z.infer<typeof mergeStrategiesSchema>
 
@@ -35,6 +40,7 @@ const pullRequestSchema = z.object({
   githubLabels: z.array(z.string()).optional(),
   enableAutoMerge: mergeStrategiesSchema.optional(),
   pullRequestComment: z.string().optional(),
+  commitHistory: pullRequestCommitHistorySchema.optional(),
   cleanupExistingAutomatorBranches: z.boolean().optional()
 })
 

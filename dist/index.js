@@ -40185,16 +40185,22 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit) {
     else {
         core.info(`New version found for ${sourceRepo.repo}`);
         const relevantCommits = [];
-        for (const ver of repoVersionsToUpdate) {
-            const commits = await octokit.paginate(octokit.rest.repos.compareCommits, {
-                owner,
-                repo,
-                base: ver.version, // Older commit
-                head: currentVersionSha // Newer commit
-            }, response => response.data.commits);
-            for (const commit of commits) {
-                if (!relevantCommits.find(c => c.sha === commit.sha)) {
-                    relevantCommits.push(commit);
+        if (!config.pullRequest.commitHistory?.disable) {
+            for (const ver of repoVersionsToUpdate) {
+                const commits = await octokit.paginate(octokit.rest.repos.compareCommits, {
+                    owner,
+                    repo,
+                    base: ver.version, // Older commit
+                    head: currentVersionSha // Newer commit
+                }, response => response.data.commits);
+                for (const commit of commits) {
+                    if (config.pullRequest.commitHistory?.onlyMergeCommits &&
+                        commit.parents.length < 2) {
+                        continue;
+                    }
+                    if (!relevantCommits.find(c => c.sha === commit.sha)) {
+                        relevantCommits.push(commit);
+                    }
                 }
             }
         }
@@ -40265,12 +40271,17 @@ const mergeStrategiesSchema = z.union([
     z.literal('rebase'),
     z.literal('merge')
 ]);
+const pullRequestCommitHistorySchema = z.object({
+    disable: z.boolean().optional(),
+    onlyMergeCommits: z.boolean().optional()
+});
 // Schema for PullRequest
 const pullRequestSchema = z.object({
     title: z.string(),
     githubLabels: z.array(z.string()).optional(),
     enableAutoMerge: mergeStrategiesSchema.optional(),
     pullRequestComment: z.string().optional(),
+    commitHistory: pullRequestCommitHistorySchema.optional(),
     cleanupExistingAutomatorBranches: z.boolean().optional()
 });
 const versioningSchemeSchema = z.union([
@@ -40631,10 +40642,12 @@ async function generatePrSummaryText(config, allRepoChanges) {
                 prSummaryText += `| ${file.gitPath} | [\`${version.version.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.version}) |\n`;
             }
         }
-        prSummaryText += `\n\n### :memo: Changes:\n`;
-        for (const commit of repoChanges.commits) {
-            const shortMessage = resolveAllPrRefs(commit.commit.message.split('\n')[0], repoChanges);
-            prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`;
+        if (!config.pullRequest.commitHistory?.disable) {
+            prSummaryText += `\n\n### :memo: Changes:\n`;
+            for (const commit of repoChanges.commits) {
+                const shortMessage = resolveAllPrRefs(commit.commit.message.split('\n')[0], repoChanges);
+                prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`;
+            }
         }
     }
     return prSummaryText;
