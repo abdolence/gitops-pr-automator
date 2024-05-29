@@ -3,6 +3,12 @@ import { findVersions, FoundVersion } from './versions-finder'
 import * as github from '@actions/github'
 import * as core from '@actions/core'
 
+export interface GitCommitParent {
+  sha: string
+  url: string
+  html_url: string
+}
+
 export interface GitCommit {
   sha: string
   url: string
@@ -21,6 +27,7 @@ export interface GitCommit {
     url: string
   }
   comments_url: string
+  parents: GitCommitParent[]
 }
 
 export interface FoundChanges {
@@ -105,21 +112,29 @@ export async function findChangesInSourceRepo(
   } else {
     core.info(`New version found for ${sourceRepo.repo}`)
     const relevantCommits: GitCommit[] = []
-    for (const ver of repoVersionsToUpdate) {
-      const commits = await octokit.paginate(
-        octokit.rest.repos.compareCommits,
-        {
-          owner,
-          repo,
-          base: ver.version, // Older commit
-          head: currentVersionSha // Newer commit
-        },
-        response => response.data.commits
-      )
+    if (!config.pullRequest.commitHistory?.disable) {
+      for (const ver of repoVersionsToUpdate) {
+        const commits = await octokit.paginate(
+          octokit.rest.repos.compareCommits,
+          {
+            owner,
+            repo,
+            base: ver.version, // Older commit
+            head: currentVersionSha // Newer commit
+          },
+          response => response.data.commits
+        )
 
-      for (const commit of commits) {
-        if (!relevantCommits.find(c => c.sha === commit.sha)) {
-          relevantCommits.push(commit as GitCommit)
+        for (const commit of commits) {
+          if (
+            config.pullRequest.commitHistory?.onlyMergeCommits &&
+            commit.parents.length < 2
+          ) {
+            continue
+          }
+          if (!relevantCommits.find(c => c.sha === commit.sha)) {
+            relevantCommits.push(commit as GitCommit)
+          }
         }
       }
     }

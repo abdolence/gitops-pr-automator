@@ -60,6 +60,9 @@ pullRequest:
   pullRequestComment: |
     This PR was automatically created by the GitOps PR Automator.
     Please review the changes and merge if they look good.
+  commitHistory:
+    disable: false # You can disable commit history in the PR
+    onlyMergeCommits: false # You can include only merge commits in the PR
 # Source repositories to monitor for new releases
 sourceRepos:
   - repo: abdolence/gitops-pr-automator # Repository to monitor
@@ -89,6 +92,13 @@ both:
 In this example, the action will look for a string of 40 hexadecimal characters
 following `tag:` and replace it with the new version. You can specify multiple
 `regex` in the configuration file to match and replace.
+
+Some other useful examples of regex:
+
+- `(?<=(tag: ))[0-9]+\.[0-9]+\.[0-9]+(?=(.*))` - match and replace semantic
+  versioning
+- `(?<=(image.tag\n(\s)*value:\s))[a-f0-9]{40}(?=(.*))` - match and replace the
+  version in the Helm chart values file
 
 ### Create a GitHub Action workflow in your GitOps config repository
 
