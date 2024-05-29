@@ -40624,10 +40624,12 @@ async function generatePrSummaryText(config, allRepoChanges) {
         prSummaryText += `## ${repoChanges.sourceRepo.repo}\n\n`;
         prSummaryText += `### Versions:\n\n`;
         prSummaryText += `\n\n :fast_forward: Updated to: [\`${repoChanges.currentVersion.slice(0, 9)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${repoChanges.currentVersion}).\n\nExisting versions:\n`;
-        prSummaryText += `| Version | Files |\n`;
+        prSummaryText += `| File | Current Version |\n`;
         prSummaryText += `| ------- | ----- |\n`;
         for (const version of repoChanges.repoVersionsToUpdate) {
-            prSummaryText += `| [\`${version.version.slice(0, 9)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.version}) | ${version.files.map(f => f.gitPath).join(', ')} |\n`;
+            for (const file of version.files) {
+                prSummaryText += `| ${file.gitPath} | [\`${version.version.slice(0, 9)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.version}) |\n`;
+            }
         }
         prSummaryText += `\n\n### :memo: Changes:\n`;
         for (const commit of repoChanges.commits) {
