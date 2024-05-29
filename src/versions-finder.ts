@@ -1,4 +1,4 @@
-import { ReleaseFileConfig } from './config'
+import { Config, ReleaseFileConfig } from './config'
 import * as glob from '@actions/glob'
 import fs from 'fs/promises'
 
@@ -15,6 +15,7 @@ export interface FoundVersion {
 }
 
 export async function findVersions(
+  config: Config,
   releaseFiles: ReleaseFileConfig[]
 ): Promise<FoundVersion[]> {
   const results = new Map<string, FoundVersion>()
@@ -26,7 +27,8 @@ export async function findVersions(
     const fileResults = await globber.glob()
 
     for (const filePath of fileResults) {
-      for (const fileRegexStr of fileConfig.regex) {
+      const regexes = fileConfig.regex || config.regex || []
+      for (const fileRegexStr of regexes) {
         const fileRegex = new RegExp(fileRegexStr, 'gm')
         console.debug('Checking file: ', filePath)
         const fileContent = (await fs.readFile(filePath)).toString()

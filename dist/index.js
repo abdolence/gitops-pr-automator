@@ -40141,7 +40141,7 @@ exports.findChangesInSourceRepo = void 0;
 const versions_finder_1 = __nccwpck_require__(6563);
 const core = __importStar(__nccwpck_require__(2186));
 async function findChangesInSourceRepo(config, sourceRepo, octokit) {
-    const repoVersions = await (0, versions_finder_1.findVersions)(sourceRepo.releaseFiles || []);
+    const repoVersions = await (0, versions_finder_1.findVersions)(config, sourceRepo.releaseFiles || []);
     core.info(`Found versions: [${repoVersions.map(ver => ver.version).join(', ')}] for '${sourceRepo.repo}'`);
     const [owner, repo] = sourceRepo.repo.split('/');
     console.debug(`Getting the current version of ${sourceRepo.repo}`);
@@ -40258,7 +40258,7 @@ const yaml = __importStar(__nccwpck_require__(1917));
 const releaseFileConfigSchema = z.object({
     path: z.string(),
     ignore: z.string().optional(),
-    regex: z.array(z.string())
+    regex: z.array(z.string()).optional()
 });
 // Schema for SourceRepoConfig
 const sourceRepoConfigSchema = z.object({
@@ -40298,7 +40298,8 @@ exports.configSchema = z.object({
     id: z.string(),
     pullRequest: pullRequestSchema,
     versioning: versioningSchema.optional(),
-    sourceRepos: z.array(sourceRepoConfigSchema)
+    sourceRepos: z.array(sourceRepoConfigSchema),
+    regex: z.array(z.string()).optional()
 });
 async function loadConfigFromYaml(configPath) {
     const configContent = await promises_1.default.readFile(configPath);
@@ -40702,14 +40703,15 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.findVersions = void 0;
 const glob = __importStar(__nccwpck_require__(8090));
 const promises_1 = __importDefault(__nccwpck_require__(3292));
-async function findVersions(releaseFiles) {
+async function findVersions(config, releaseFiles) {
     const results = new Map();
     for (const fileConfig of releaseFiles) {
         console.debug(`Finding version changes in release files: ${fileConfig.path} with regex: ${fileConfig.regex}`);
         const globber = await glob.create(fileConfig.path);
         const fileResults = await globber.glob();
         for (const filePath of fileResults) {
-            for (const fileRegexStr of fileConfig.regex) {
+            const regexes = fileConfig.regex || config.regex || [];
+            for (const fileRegexStr of regexes) {
                 const fileRegex = new RegExp(fileRegexStr, 'gm');
                 console.debug('Checking file: ', filePath);
                 const fileContent = (await promises_1.default.readFile(filePath)).toString();

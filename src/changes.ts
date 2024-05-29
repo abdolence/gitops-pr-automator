@@ -43,7 +43,7 @@ export async function findChangesInSourceRepo(
   sourceRepo: SourceRepoConfig,
   octokit: ReturnType<typeof github.getOctokit>
 ): Promise<FoundChanges | undefined> {
-  const repoVersions = await findVersions(sourceRepo.releaseFiles || [])
+  const repoVersions = await findVersions(config, sourceRepo.releaseFiles || [])
   core.info(
     `Found versions: [${repoVersions.map(ver => ver.version).join(', ')}] for '${sourceRepo.repo}'`
   )
