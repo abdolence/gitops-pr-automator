@@ -63,6 +63,11 @@ pullRequest:
   commitHistory:
     disable: false # You can disable commit history in the PR
     onlyMergeCommits: false # You can include only merge commits in the PR
+
+#  Manage the PRs lifecycle created by the action
+#  alwaysCreateNew: true
+#  leaveOpenOnlyNumberOfPRs: 2
+
 # You can define regex patterns for all repositories and
 # override them for specific repositories
 # regex:
