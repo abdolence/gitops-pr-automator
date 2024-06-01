@@ -41,7 +41,9 @@ const pullRequestSchema = z.object({
   enableAutoMerge: mergeStrategiesSchema.optional(),
   pullRequestComment: z.string().optional(),
   commitHistory: pullRequestCommitHistorySchema.optional(),
-  cleanupExistingAutomatorBranches: z.boolean().optional()
+  cleanupExistingAutomatorBranches: z.boolean().optional(),
+  alwaysCreateNew: z.boolean().optional(),
+  leaveOpenOnlyNumberOfPRs: z.number().optional()
 })
 
 const versioningSchemeSchema = z.union([

@@ -40282,7 +40282,9 @@ const pullRequestSchema = z.object({
     enableAutoMerge: mergeStrategiesSchema.optional(),
     pullRequestComment: z.string().optional(),
     commitHistory: pullRequestCommitHistorySchema.optional(),
-    cleanupExistingAutomatorBranches: z.boolean().optional()
+    cleanupExistingAutomatorBranches: z.boolean().optional(),
+    alwaysCreateNew: z.boolean().optional(),
+    leaveOpenOnlyNumberOfPRs: z.number().optional()
 });
 const versioningSchemeSchema = z.union([
     z.literal('commit-sha-only'),
@@ -40464,7 +40466,23 @@ async function createPullRequest(config, allRepoChanges, octokit) {
     const prSummaryText = await generatePrSummaryText(config, allRepoChanges);
     // Find existing PRs
     const existingPRs = await findExistingPullRequests(config, octokit);
-    if (existingPRs.length > 0) {
+    if (existingPRs.length > 0 && config.pullRequest.leaveOpenOnlyNumberOfPRs) {
+        // Sort PRs by creation date
+        const sortedPRs = [...existingPRs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        // Close the oldest PRs
+        const prsToClose = sortedPRs.slice(config.pullRequest.leaveOpenOnlyNumberOfPRs, sortedPRs.length);
+        console.info(`Found ${existingPRs.length} existing PRs for ${config.id}. Leaving ${config.pullRequest.leaveOpenOnlyNumberOfPRs} PRs open.`);
+        for (const closePr of prsToClose) {
+            await octokit.rest.pulls.update({
+                owner: gitOpsRepo.owner,
+                repo: gitOpsRepo.repo,
+                pull_number: closePr.number,
+                state: 'closed'
+            });
+            await removeAutomatorBranch(octokit, closePr.head.ref);
+        }
+    }
+    if (existingPRs.length > 0 && !config.pullRequest.alwaysCreateNew) {
         console.info(`Found ${existingPRs.length} existing PRs for ${config.id}`);
         const pullRequest = existingPRs[0];
         // Merge the PR
@@ -40490,7 +40508,12 @@ async function createPullRequest(config, allRepoChanges, octokit) {
         // Create a new branch name that includes the config id and the current timestamp to make it unique
         const newBranchName = `${config.id}-${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`;
         const newBranchRef = `refs/heads/${newBranchName}`;
-        console.info(`No existing PRs found for '${config.id}-*'. Creating a new PR '${newBranchRef}'`);
+        if (config.pullRequest.alwaysCreateNew) {
+            console.info(`Creating a new PR '${newBranchRef}' because 'alwaysCreateNew' is set to true.`);
+        }
+        else {
+            console.info(`No existing PRs found for '${config.id}-*'. Creating a new PR '${newBranchRef}'`);
+        }
         // Create a new branch
         await octokit.rest.git.createRef({
             owner: gitOpsRepo.owner,
@@ -40607,6 +40630,20 @@ async function removeAllAutomatorBranches(config, octokit) {
             console.error(`Failed to delete branch ${branch}`);
             console.error(error);
         }
+    }
+}
+async function removeAutomatorBranch(octokit, branchName) {
+    const gitOpsRepo = github.context.repo;
+    try {
+        await octokit.rest.git.deleteRef({
+            owner: gitOpsRepo.owner,
+            repo: gitOpsRepo.repo,
+            ref: `heads/${branchName}`
+        });
+    }
+    catch (error) {
+        console.error(`Failed to delete branch ${branchName}`);
+        console.error(error);
     }
 }
 async function enableAutoMergeOnPR(octokit, pullRequestId, mergeMethod) {
