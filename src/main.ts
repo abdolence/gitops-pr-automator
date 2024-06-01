@@ -21,7 +21,10 @@ export async function run(): Promise<void> {
       core.getInput('config-path') ||
       '.github/gitops/gitops-pr-automator.config.yaml'
     core.info(`Loading configuration from ${configPath}`)
-    const config = await loadConfigFromYaml(configPath)
+    const config = await loadConfigFromYaml(
+      configPath,
+      core.getInput('config-override')
+    )
 
     const githubToken: string = core.getInput('github-token')
     if (!githubToken) {

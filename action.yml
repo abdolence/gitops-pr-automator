@@ -25,6 +25,11 @@ inputs:
       'Path to the configuration file that defines the repositories and the
       files to watch for changes.'
     required: false
+  config-override:
+    description:
+      'Overrides for the configuration file. This will be merged with the the
+      config file.'
+    required: false
 
 outputs:
   detected-changes:

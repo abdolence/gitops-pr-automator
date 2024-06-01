@@ -1,6 +1,7 @@
 import * as z from 'zod'
 import fs from 'fs/promises'
 import * as yaml from 'js-yaml'
+import { merge } from 'ts-deepmerge'
 
 // Schema for ReleaseFileConfig
 const releaseFileConfigSchema = z.object({
@@ -69,8 +70,16 @@ export const configSchema = z.object({
 // Type for your validated config
 export type Config = z.infer<typeof configSchema>
 
-export async function loadConfigFromYaml(configPath: string): Promise<Config> {
-  const configContent = await fs.readFile(configPath)
-  const config = configSchema.parse(yaml.load(configContent.toString()))
-  return config
+export async function loadConfigFromYaml(
+  configPath: string,
+  configOverride?: string
+): Promise<Config> {
+  const fileConfigContent = await fs.readFile(configPath)
+  const fileConfigYaml: any = yaml.load(fileConfigContent.toString())
+  let config: any = fileConfigYaml
+  if (configOverride) {
+    const overrideConfig: any = yaml.load(configOverride)
+    config = merge(fileConfigYaml, overrideConfig)
+  }
+  return configSchema.parse(config)
 }
