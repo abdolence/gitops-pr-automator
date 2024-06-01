@@ -40255,6 +40255,7 @@ exports.loadConfigFromYaml = exports.configSchema = void 0;
 const z = __importStar(__nccwpck_require__(3301));
 const promises_1 = __importDefault(__nccwpck_require__(3292));
 const yaml = __importStar(__nccwpck_require__(1917));
+const ts_deepmerge_1 = __nccwpck_require__(3839);
 // Schema for ReleaseFileConfig
 const releaseFileConfigSchema = z.object({
     path: z.string(),
@@ -40304,10 +40305,15 @@ exports.configSchema = z.object({
     sourceRepos: z.array(sourceRepoConfigSchema),
     regex: z.array(z.string()).optional()
 });
-async function loadConfigFromYaml(configPath) {
-    const configContent = await promises_1.default.readFile(configPath);
-    const config = exports.configSchema.parse(yaml.load(configContent.toString()));
-    return config;
+async function loadConfigFromYaml(configPath, configOverride) {
+    const fileConfigContent = await promises_1.default.readFile(configPath);
+    const fileConfigYaml = yaml.load(fileConfigContent.toString());
+    let config = fileConfigYaml;
+    if (configOverride) {
+        const overrideConfig = yaml.load(configOverride);
+        config = (0, ts_deepmerge_1.merge)(fileConfigYaml, overrideConfig);
+    }
+    return exports.configSchema.parse(config);
 }
 exports.loadConfigFromYaml = loadConfigFromYaml;
 
@@ -40361,7 +40367,7 @@ async function run() {
         const configPath = core.getInput('config-path') ||
             '.github/gitops/gitops-pr-automator.config.yaml';
         core.info(`Loading configuration from ${configPath}`);
-        const config = await (0, config_1.loadConfigFromYaml)(configPath);
+        const config = await (0, config_1.loadConfigFromYaml)(configPath, core.getInput('config-override'));
         const githubToken = core.getInput('github-token');
         if (!githubToken) {
             core.setFailed('GitHub token not provided. Please specify the `github-token` input.');
@@ -42641,6 +42647,70 @@ function parseParams (str) {
 }
 
 module.exports = parseParams
+
+
+/***/ }),
+
+/***/ 3839:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.merge = void 0;
+// istanbul ignore next
+const isObject = (obj) => {
+    if (typeof obj === "object" && obj !== null) {
+        if (typeof Object.getPrototypeOf === "function") {
+            const prototype = Object.getPrototypeOf(obj);
+            return prototype === Object.prototype || prototype === null;
+        }
+        return Object.prototype.toString.call(obj) === "[object Object]";
+    }
+    return false;
+};
+const merge = (...objects) => objects.reduce((result, current) => {
+    if (Array.isArray(current)) {
+        throw new TypeError("Arguments provided to ts-deepmerge must be objects, not arrays.");
+    }
+    Object.keys(current).forEach((key) => {
+        if (["__proto__", "constructor", "prototype"].includes(key)) {
+            return;
+        }
+        if (Array.isArray(result[key]) && Array.isArray(current[key])) {
+            result[key] = exports.merge.options.mergeArrays
+                ? exports.merge.options.uniqueArrayItems
+                    ? Array.from(new Set(result[key].concat(current[key])))
+                    : [...result[key], ...current[key]]
+                : current[key];
+        }
+        else if (isObject(result[key]) && isObject(current[key])) {
+            result[key] = (0, exports.merge)(result[key], current[key]);
+        }
+        else {
+            result[key] =
+                current[key] === undefined
+                    ? exports.merge.options.allowUndefinedOverrides
+                        ? current[key]
+                        : result[key]
+                    : current[key];
+        }
+    });
+    return result;
+}, {});
+exports.merge = merge;
+const defaultOptions = {
+    allowUndefinedOverrides: true,
+    mergeArrays: true,
+    uniqueArrayItems: true,
+};
+exports.merge.options = defaultOptions;
+exports.merge.withOptions = (options, ...objects) => {
+    exports.merge.options = Object.assign(Object.assign({}, defaultOptions), options);
+    const result = (0, exports.merge)(...objects);
+    exports.merge.options = defaultOptions;
+    return result;
+};
 
 
 /***/ })

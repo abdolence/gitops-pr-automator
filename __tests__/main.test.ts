@@ -32,6 +32,11 @@ describe('action', () => {
             process.env.TEST_GITHUB_TOKEN ||
             'mock-github-token'
           )
+        case 'config-override':
+          return `
+          pullRequest:
+            cleanupExistingAutomatorBranches: true
+          `
         default:
           return ''
       }

@@ -149,6 +149,11 @@ jobs:
           # github-token: ${{ secrets.GITHUB_TOKEN }}
           # github-token-read-repos: ${{ secrets.GH_AUTOMATION_TOKEN_READ_REPOS }}
           config-path: '.github/gitops/gitops-pr-automator.config.yaml'
+          # You can override the configuration file with:
+          # config-override: |
+          #   pullRequest:
+          #    githubLabels:
+          #    - gitops-test-override
 ```
 
 ### Trigger the action from your source repositories
