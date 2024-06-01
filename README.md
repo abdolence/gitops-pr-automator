@@ -144,12 +144,15 @@ jobs:
           # and create PRs in this one. This token should be fine-grained since
           # it requires content write permissions.
           github-token: ${{ secrets.GH_AUTOMATION_TOKEN }}
+          #
           # Another option is that you can provide a separate token
           # with read permissions to the repos.
           # github-token: ${{ secrets.GITHUB_TOKEN }}
           # github-token-read-repos: ${{ secrets.GH_AUTOMATION_TOKEN_READ_REPOS }}
+          #
+          # Configuration file path in the repository
           config-path: '.github/gitops/gitops-pr-automator.config.yaml'
-          # You can override the configuration file with:
+          # You can override the configuration file parameters with:
           # config-override: |
           #   pullRequest:
           #    githubLabels:
