@@ -128,7 +128,7 @@ export async function findChangesInSourceRepo(
         for (const commit of commits) {
           if (
             config.pullRequest.commitHistory?.onlyMergeCommits &&
-            commit.parents.length < 2 && commit.commit.message.match(/#\d+/)
+            commit.parents.length < 2 && !commit.commit.message.match(/#\d+/)
           ) {
             continue
           }
