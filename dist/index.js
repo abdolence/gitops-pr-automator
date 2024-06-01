@@ -40195,7 +40195,8 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit) {
                 }, response => response.data.commits);
                 for (const commit of commits) {
                     if (config.pullRequest.commitHistory?.onlyMergeCommits &&
-                        commit.parents.length < 2) {
+                        commit.parents.length < 2 &&
+                        !commit.commit.message.match(/#\d+/)) {
                         continue;
                     }
                     if (!relevantCommits.find(c => c.sha === commit.sha)) {
