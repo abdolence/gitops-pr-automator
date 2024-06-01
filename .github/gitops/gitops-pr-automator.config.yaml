@@ -8,7 +8,6 @@ pullRequest:
   pullRequestComment: |
     This PR was automatically created by the GitOps PR Automator.
     Please review the changes and merge if they look good.
-  cleanupExistingAutomatorBranches: true
   commitHistory:
     onlyMergeCommits: true
 versioning:
