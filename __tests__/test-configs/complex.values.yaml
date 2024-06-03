@@ -3,6 +3,6 @@ images:
   - name: image.test1
     value: test1
   - name: image.tag
-    value: 948ea4e3736c85d26f4ba9d992f4c9fe73cfef7e
+    value: cf73b5714e1ece212a7a2c754a198f07439a32c9
   - name: image.test2
     value: test2
