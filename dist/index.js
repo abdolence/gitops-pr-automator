@@ -40750,11 +40750,11 @@ const promises_1 = __importDefault(__nccwpck_require__(3292));
 async function findVersions(config, releaseFiles) {
     const results = new Map();
     for (const fileConfig of releaseFiles) {
-        console.debug(`Finding version changes in release files: ${fileConfig.path} with regex: ${fileConfig.regex}`);
+        const regexes = fileConfig.regex || config.regex || [];
+        console.debug(`Finding version changes in release files: ${fileConfig.path} with regex: ${regexes}`);
         const globber = await glob.create(fileConfig.path);
         const fileResults = await globber.glob();
         for (const filePath of fileResults) {
-            const regexes = fileConfig.regex || config.regex || [];
             for (const fileRegexStr of regexes) {
                 const fileRegex = new RegExp(fileRegexStr, 'gm');
                 console.debug('Checking file: ', filePath);
