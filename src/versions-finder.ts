@@ -20,14 +20,14 @@ export async function findVersions(
 ): Promise<FoundVersion[]> {
   const results = new Map<string, FoundVersion>()
   for (const fileConfig of releaseFiles) {
+    const regexes = fileConfig.regex || config.regex || []
     console.debug(
-      `Finding version changes in release files: ${fileConfig.path} with regex: ${fileConfig.regex}`
+      `Finding version changes in release files: ${fileConfig.path} with regex: ${regexes}`
     )
     const globber = await glob.create(fileConfig.path)
     const fileResults = await globber.glob()
 
     for (const filePath of fileResults) {
-      const regexes = fileConfig.regex || config.regex || []
       for (const fileRegexStr of regexes) {
         const fileRegex = new RegExp(fileRegexStr, 'gm')
         console.debug('Checking file: ', filePath)
