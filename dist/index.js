@@ -40677,6 +40677,7 @@ async function generatePrSummaryText(config, allRepoChanges) {
     let prSummaryText = config.pullRequest.pullRequestComment || 'GitOps Automator PR Summary';
     prSummaryText += '\n\n';
     for (const repoChanges of allRepoChanges) {
+        prSummaryText += '\n\n --- \n\n';
         prSummaryText += `## ${repoChanges.sourceRepo.repo}\n\n`;
         prSummaryText += `### Versions:\n\n`;
         prSummaryText += `\n\n :fast_forward: Updated to: [\`${repoChanges.currentVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${repoChanges.currentVersion}).\n\nExisting versions:\n`;
