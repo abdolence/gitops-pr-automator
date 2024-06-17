@@ -1,9 +1,9 @@
 someKey: someValue
 image1:
   repository: some-repo
-  tag: f494831b2ec1593a6b0ddcfc76a8fda680374f16
+  tag: 1551737bf9a9fa9cb6d9fcbf8fa4a3710b1a9ba0
   otherKey: otherValue
 image2:
   repository: some-repo
-  tag: f494831b2ec1593a6b0ddcfc76a8fda680374f16
+  tag: 1551737bf9a9fa9cb6d9fcbf8fa4a3710b1a9ba0
   otherKey: otherValue
