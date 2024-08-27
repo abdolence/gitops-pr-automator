@@ -40780,7 +40780,7 @@ function generateSummaryMarkdownContent(allRepoChanges) {
     for (const repoChanges of allRepoChanges) {
         content += `## ${repoChanges.sourceRepo.repo}\n\n`;
         content += `## Version\n\n`;
-        content += `${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.version}\``).join(', ')} -> \`${repoChanges.currentVersion}\``;
+        content += `${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.version}\``).join(', ')} -> \`${repoChanges.currentVersion}\`\n\n`;
         content += `### Commits\n\n`;
         for (const commit of repoChanges.commits) {
             const shortMessage = (0, pull_request_1.resolveAllPrRefs)(commit.commit.message.split('\n')[0], repoChanges);
