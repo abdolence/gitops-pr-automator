@@ -7,4 +7,4 @@ Please follow general guidelines defined on
 
 ## Contacts
 
-E-mail: [me@abdolence.dev](mailto:me@abdolence.dev)
+Email: [me@abdolence.dev](mailto:me@abdolence.dev)

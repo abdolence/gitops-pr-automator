@@ -21,3 +21,6 @@ sourceRepos:
     ref: heads/master
     releaseFiles:
       - path: '**/__tests__/test-configs/*.values.yaml'
+artifacts:
+  summaryMarkdownAs: 'output/changes-summary.md'
+  summaryJsonAs: 'output/changes-summary.json'
