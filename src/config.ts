@@ -58,13 +58,19 @@ const versioningSchema = z.object({
   resolveTagsPattern: z.string().optional()
 })
 
+const artifactConfigSchema = z.object({
+  summaryMarkdownAs: z.string().optional(),
+  summaryJsonAs: z.string().optional()
+})
+
 // Main Config schema
 export const configSchema = z.object({
   id: z.string(),
   pullRequest: pullRequestSchema,
   versioning: versioningSchema.optional(),
   sourceRepos: z.array(sourceRepoConfigSchema),
-  regex: z.array(z.string()).optional()
+  regex: z.array(z.string()).optional(),
+  artifacts: artifactConfigSchema.optional()
 })
 
 // Type for your validated config

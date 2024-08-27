@@ -40137,7 +40137,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.findChangesInSourceRepo = void 0;
+exports.findChangesInSourceRepo = findChangesInSourceRepo;
 const versions_finder_1 = __nccwpck_require__(6563);
 const core = __importStar(__nccwpck_require__(2186));
 async function findChangesInSourceRepo(config, sourceRepo, octokit) {
@@ -40214,7 +40214,6 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit) {
         };
     }
 }
-exports.findChangesInSourceRepo = findChangesInSourceRepo;
 
 
 /***/ }),
@@ -40251,7 +40250,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.loadConfigFromYaml = exports.configSchema = void 0;
+exports.configSchema = void 0;
+exports.loadConfigFromYaml = loadConfigFromYaml;
 const z = __importStar(__nccwpck_require__(3301));
 const promises_1 = __importDefault(__nccwpck_require__(3292));
 const yaml = __importStar(__nccwpck_require__(1917));
@@ -40297,13 +40297,18 @@ const versioningSchema = z.object({
     scheme: versioningSchemeSchema,
     resolveTagsPattern: z.string().optional()
 });
+const artifactConfigSchema = z.object({
+    summaryMarkdownAs: z.string().optional(),
+    summaryJsonAs: z.string().optional()
+});
 // Main Config schema
 exports.configSchema = z.object({
     id: z.string(),
     pullRequest: pullRequestSchema,
     versioning: versioningSchema.optional(),
     sourceRepos: z.array(sourceRepoConfigSchema),
-    regex: z.array(z.string()).optional()
+    regex: z.array(z.string()).optional(),
+    artifacts: artifactConfigSchema.optional()
 });
 async function loadConfigFromYaml(configPath, configOverride) {
     const fileConfigContent = await promises_1.default.readFile(configPath);
@@ -40315,7 +40320,6 @@ async function loadConfigFromYaml(configPath, configOverride) {
     }
     return exports.configSchema.parse(config);
 }
-exports.loadConfigFromYaml = loadConfigFromYaml;
 
 
 /***/ }),
@@ -40349,7 +40353,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = void 0;
+exports.run = run;
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const z = __importStar(__nccwpck_require__(3301));
@@ -40357,6 +40361,7 @@ const config_1 = __nccwpck_require__(6373);
 const changes_1 = __nccwpck_require__(5572);
 const pull_request_1 = __nccwpck_require__(4773);
 const request_error_1 = __nccwpck_require__(537);
+const summary_artifacts_1 = __nccwpck_require__(6895);
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -40396,6 +40401,7 @@ async function run() {
             core.info(`Found changes in ${allRepoChanges.length} source repos. Creating a new PR or updating an existing one.`);
             await (0, pull_request_1.createPullRequest)(config, allRepoChanges, defaultOctokit);
             core.setOutput('detected-changes', allRepoChanges.map(c => c.sourceRepo.repo).join(', '));
+            await (0, summary_artifacts_1.generateSummaryArtifacts)(config, allRepoChanges);
         }
     }
     catch (error) {
@@ -40418,7 +40424,6 @@ async function run() {
         }
     }
 }
-exports.run = run;
 
 
 /***/ }),
@@ -40452,7 +40457,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createPullRequest = void 0;
+exports.createPullRequest = createPullRequest;
+exports.resolveAllPrRefs = resolveAllPrRefs;
 const github = __importStar(__nccwpck_require__(5438));
 const request_error_1 = __nccwpck_require__(537);
 async function createPullRequest(config, allRepoChanges, octokit) {
@@ -40550,7 +40556,6 @@ async function createPullRequest(config, allRepoChanges, octokit) {
         }
     }
 }
-exports.createPullRequest = createPullRequest;
 async function getFileContent(octokit, path, branchName) {
     const gitOpsRepo = github.context.repo;
     try {
@@ -40713,6 +40718,82 @@ function resolveAllPrRefs(message, repoChanges) {
 
 /***/ }),
 
+/***/ 6895:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.generateSummaryArtifacts = generateSummaryArtifacts;
+const promises_1 = __importDefault(__nccwpck_require__(3292));
+const pull_request_1 = __nccwpck_require__(4773);
+const core = __importStar(__nccwpck_require__(2186));
+async function generateSummaryArtifacts(config, allRepoChanges) {
+    if (config.artifacts?.summaryMarkdownAs) {
+        const summaryMarkdownPath = config.artifacts.summaryMarkdownAs;
+        const summaryMarkdownContent = generateSummaryMarkdownContent(allRepoChanges);
+        core.info(`Writing summary markdown to ${summaryMarkdownPath}`);
+        const summaryMarkdownPathDir = summaryMarkdownPath
+            .split('/')
+            .slice(0, -1)
+            .join('/');
+        await promises_1.default.mkdir(summaryMarkdownPathDir, { recursive: true });
+        await promises_1.default.writeFile(summaryMarkdownPath, summaryMarkdownContent);
+    }
+    if (config.artifacts?.summaryJsonAs) {
+        const summaryJsonPath = config.artifacts.summaryJsonAs;
+        const summaryJsonContent = JSON.stringify(allRepoChanges, null, 2);
+        core.info(`Writing summary json to ${summaryJsonPath}`);
+        const summaryJsonPathDir = summaryJsonPath.split('/').slice(0, -1).join('/');
+        await promises_1.default.mkdir(summaryJsonPathDir, { recursive: true });
+        await promises_1.default.writeFile(summaryJsonPath, summaryJsonContent);
+    }
+}
+function generateSummaryMarkdownContent(allRepoChanges) {
+    let content = `# Summary of Changes\n\n`;
+    for (const repoChanges of allRepoChanges) {
+        content += `## ${repoChanges.sourceRepo.repo}\n\n`;
+        content += `## Version\n\n`;
+        content += `${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.version}\``).join(', ')} -> \`${repoChanges.currentVersion}\``;
+        content += `### Commits\n\n`;
+        for (const commit of repoChanges.commits) {
+            const shortMessage = (0, pull_request_1.resolveAllPrRefs)(commit.commit.message.split('\n')[0], repoChanges);
+            content += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`;
+        }
+        content += '\n';
+    }
+    return content;
+}
+
+
+/***/ }),
+
 /***/ 6563:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -40745,7 +40826,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.findVersions = void 0;
+exports.findVersions = findVersions;
 const glob = __importStar(__nccwpck_require__(8090));
 const promises_1 = __importDefault(__nccwpck_require__(3292));
 async function findVersions(config, releaseFiles) {
@@ -40790,7 +40871,6 @@ async function findVersions(config, releaseFiles) {
     }
     return Array.from(results.values());
 }
-exports.findVersions = findVersions;
 
 
 /***/ }),

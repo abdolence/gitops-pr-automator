@@ -375,7 +375,7 @@ async function generatePrSummaryText(
 }
 
 // Resolve all PR references in a string to their full URLs
-function resolveAllPrRefs(message: string, repoChanges: FoundChanges) {
+export function resolveAllPrRefs(message: string, repoChanges: FoundChanges) {
   const prRefs = message.match(/#[0-9]+/g)
   if (!prRefs) return message
   for (const prRef of prRefs) {
