@@ -40327,7 +40327,8 @@ const pullRequestSchema = z.object({
     commitHistory: pullRequestCommitHistorySchema.optional(),
     cleanupExistingAutomatorBranches: z.boolean().optional(),
     alwaysCreateNew: z.boolean().optional(),
-    leaveOpenOnlyNumberOfPRs: z.number().optional()
+    leaveOpenOnlyNumberOfPRs: z.number().optional(),
+    includeGitHubOwnerInDescription: z.boolean().optional()
 });
 const versioningSchemeSchema = z.union([
     z.literal('commit-sha-only'),
@@ -40724,7 +40725,11 @@ async function generatePrSummaryText(config, allRepoChanges) {
     prSummaryText += '\n\n';
     for (const repoChanges of allRepoChanges) {
         prSummaryText += '\n\n --- \n\n';
-        prSummaryText += `## ${repoChanges.sourceRepo.repo}\n\n`;
+        let repoName = repoChanges.sourceRepo.repo.split('/')[1];
+        if (config.pullRequest.includeGitHubOwnerInDescription) {
+            repoName = repoChanges.sourceRepo.repo;
+        }
+        prSummaryText += `## ${repoName}\n\n`;
         prSummaryText += `### Versions:\n\n`;
         prSummaryText += `\n\n :fast_forward: Updated to: [\`${repoChanges.currentVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${repoChanges.currentVersion}).\n\nExisting versions:\n`;
         prSummaryText += `| File | Current Version |\n`;
@@ -40798,7 +40803,7 @@ const core = __importStar(__nccwpck_require__(2186));
 async function generateSummaryArtifacts(config, allRepoChanges) {
     if (config.artifacts?.summaryMarkdownAs) {
         const summaryMarkdownPath = config.artifacts.summaryMarkdownAs;
-        const summaryMarkdownContent = generateSummaryMarkdownContent(allRepoChanges);
+        const summaryMarkdownContent = generateSummaryMarkdownContent(config, allRepoChanges);
         core.info(`Writing summary markdown to ${summaryMarkdownPath}`);
         const summaryMarkdownPathDir = summaryMarkdownPath
             .split('/')
@@ -40816,11 +40821,15 @@ async function generateSummaryArtifacts(config, allRepoChanges) {
         await promises_1.default.writeFile(summaryJsonPath, summaryJsonContent);
     }
 }
-function generateSummaryMarkdownContent(allRepoChanges) {
+function generateSummaryMarkdownContent(config, allRepoChanges) {
     let content = `# Summary of Changes\n\n`;
     for (const repoChanges of allRepoChanges) {
-        content += `## ${repoChanges.sourceRepo.repo}\n\n`;
-        content += `## Version\n\n`;
+        let repoName = repoChanges.sourceRepo.repo.split('/')[1];
+        if (config.pullRequest.includeGitHubOwnerInDescription) {
+            repoName = repoChanges.sourceRepo.repo;
+        }
+        content += `## ${repoName}\n\n`;
+        content += `## Version Changes\n\n`;
         content += `${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.version}\``).join(', ')} -> \`${repoChanges.currentVersion}\`\n\n`;
         content += `### Commits\n\n`;
         for (const commit of repoChanges.commits) {

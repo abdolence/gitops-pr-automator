@@ -348,7 +348,11 @@ async function generatePrSummaryText(
 
   for (const repoChanges of allRepoChanges) {
     prSummaryText += '\n\n --- \n\n'
-    prSummaryText += `## ${repoChanges.sourceRepo.repo}\n\n`
+    let repoName = repoChanges.sourceRepo.repo.split('/')[1]
+    if (config.pullRequest.includeGitHubOwnerInDescription) {
+      repoName = repoChanges.sourceRepo.repo
+    }
+    prSummaryText += `## ${repoName}\n\n`
     prSummaryText += `### Versions:\n\n`
     prSummaryText += `\n\n :fast_forward: Updated to: [\`${repoChanges.currentVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${repoChanges.currentVersion}).\n\nExisting versions:\n`
 

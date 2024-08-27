@@ -10,8 +10,10 @@ export async function generateSummaryArtifacts(
 ): Promise<void> {
   if (config.artifacts?.summaryMarkdownAs) {
     const summaryMarkdownPath = config.artifacts.summaryMarkdownAs
-    const summaryMarkdownContent =
-      generateSummaryMarkdownContent(allRepoChanges)
+    const summaryMarkdownContent = generateSummaryMarkdownContent(
+      config,
+      allRepoChanges
+    )
     core.info(`Writing summary markdown to ${summaryMarkdownPath}`)
     const summaryMarkdownPathDir = summaryMarkdownPath
       .split('/')
@@ -31,12 +33,17 @@ export async function generateSummaryArtifacts(
 }
 
 function generateSummaryMarkdownContent(
+  config: Config,
   allRepoChanges: FoundChanges[]
 ): string {
   let content = `# Summary of Changes\n\n`
   for (const repoChanges of allRepoChanges) {
-    content += `## ${repoChanges.sourceRepo.repo}\n\n`
-    content += `## Version\n\n`
+    let repoName = repoChanges.sourceRepo.repo.split('/')[1]
+    if (config.pullRequest.includeGitHubOwnerInDescription) {
+      repoName = repoChanges.sourceRepo.repo
+    }
+    content += `## ${repoName}\n\n`
+    content += `## Version Changes\n\n`
     content += `${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.version}\``).join(', ')} -> \`${repoChanges.currentVersion}\`\n\n`
     content += `### Commits\n\n`
     for (const commit of repoChanges.commits) {
