@@ -102,7 +102,7 @@ In this example, the action will look for a string of 40 hexadecimal characters
 following `tag:` and replace it with the new version. You can specify multiple
 `regex` in the configuration file to match and replace.
 
-Some other useful examples of regex:
+Some other useful examples of regular expressions:
 
 - `(?<=(tag: ))[0-9]+\.[0-9]+\.[0-9]+(?=(.*))` - match and replace semantic
   versioning

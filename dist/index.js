@@ -1292,7 +1292,7 @@ function hashFiles(patterns, currentWorkspace = '', options, verbose = false) {
             followSymbolicLinks = options.followSymbolicLinks;
         }
         const globber = yield create(patterns, { followSymbolicLinks });
-        return internal_hash_files_1.hashFiles(globber, currentWorkspace, verbose);
+        return (0, internal_hash_files_1.hashFiles)(globber, currentWorkspace, verbose);
     });
 }
 exports.hashFiles = hashFiles;
@@ -1307,7 +1307,11 @@ exports.hashFiles = hashFiles;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -1320,7 +1324,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -1335,7 +1339,8 @@ function getOptions(copy) {
         followSymbolicLinks: true,
         implicitDescendants: true,
         matchDirectories: true,
-        omitBrokenSymbolicLinks: true
+        omitBrokenSymbolicLinks: true,
+        excludeHiddenFiles: false
     };
     if (copy) {
         if (typeof copy.followSymbolicLinks === 'boolean') {
@@ -1354,6 +1359,10 @@ function getOptions(copy) {
             result.omitBrokenSymbolicLinks = copy.omitBrokenSymbolicLinks;
             core.debug(`omitBrokenSymbolicLinks '${result.omitBrokenSymbolicLinks}'`);
         }
+        if (typeof copy.excludeHiddenFiles === 'boolean') {
+            result.excludeHiddenFiles = copy.excludeHiddenFiles;
+            core.debug(`excludeHiddenFiles '${result.excludeHiddenFiles}'`);
+        }
     }
     return result;
 }
@@ -1369,7 +1378,11 @@ exports.getOptions = getOptions;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -1382,7 +1395,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -1436,19 +1449,21 @@ class DefaultGlobber {
         return this.searchPaths.slice();
     }
     glob() {
-        var e_1, _a;
+        var _a, e_1, _b, _c;
         return __awaiter(this, void 0, void 0, function* () {
             const result = [];
             try {
-                for (var _b = __asyncValues(this.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {
-                    const itemPath = _c.value;
+                for (var _d = true, _e = __asyncValues(this.globGenerator()), _f; _f = yield _e.next(), _a = _f.done, !_a; _d = true) {
+                    _c = _f.value;
+                    _d = false;
+                    const itemPath = _c;
                     result.push(itemPath);
                 }
             }
             catch (e_1_1) { e_1 = { error: e_1_1 }; }
             finally {
                 try {
-                    if (_c && !_c.done && (_a = _b.return)) yield _a.call(_b);
+                    if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
                 }
                 finally { if (e_1) throw e_1.error; }
             }
@@ -1504,6 +1519,10 @@ class DefaultGlobber {
                 );
                 // Broken symlink, or symlink cycle detected, or no longer exists
                 if (!stats) {
+                    continue;
+                }
+                // Hidden file or directory?
+                if (options.excludeHiddenFiles && path.basename(item.path).match(/^\./)) {
                     continue;
                 }
                 // Directory
@@ -1611,7 +1630,11 @@ exports.DefaultGlobber = DefaultGlobber;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -1624,7 +1647,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -1653,19 +1676,21 @@ const stream = __importStar(__nccwpck_require__(2781));
 const util = __importStar(__nccwpck_require__(3837));
 const path = __importStar(__nccwpck_require__(1017));
 function hashFiles(globber, currentWorkspace, verbose = false) {
-    var e_1, _a;
-    var _b;
+    var _a, e_1, _b, _c;
+    var _d;
     return __awaiter(this, void 0, void 0, function* () {
         const writeDelegate = verbose ? core.info : core.debug;
         let hasMatch = false;
         const githubWorkspace = currentWorkspace
             ? currentWorkspace
-            : (_b = process.env['GITHUB_WORKSPACE']) !== null && _b !== void 0 ? _b : process.cwd();
+            : (_d = process.env['GITHUB_WORKSPACE']) !== null && _d !== void 0 ? _d : process.cwd();
         const result = crypto.createHash('sha256');
         let count = 0;
         try {
-            for (var _c = __asyncValues(globber.globGenerator()), _d; _d = yield _c.next(), !_d.done;) {
-                const file = _d.value;
+            for (var _e = true, _f = __asyncValues(globber.globGenerator()), _g; _g = yield _f.next(), _a = _g.done, !_a; _e = true) {
+                _c = _g.value;
+                _e = false;
+                const file = _c;
                 writeDelegate(file);
                 if (!file.startsWith(`${githubWorkspace}${path.sep}`)) {
                     writeDelegate(`Ignore '${file}' since it is not under GITHUB_WORKSPACE.`);
@@ -1688,7 +1713,7 @@ function hashFiles(globber, currentWorkspace, verbose = false) {
         catch (e_1_1) { e_1 = { error: e_1_1 }; }
         finally {
             try {
-                if (_d && !_d.done && (_a = _c.return)) yield _a.call(_c);
+                if (!_e && !_a && (_b = _f.return)) yield _b.call(_f);
             }
             finally { if (e_1) throw e_1.error; }
         }
@@ -1728,7 +1753,7 @@ var MatchKind;
     MatchKind[MatchKind["File"] = 2] = "File";
     /** Matched */
     MatchKind[MatchKind["All"] = 3] = "All";
-})(MatchKind = exports.MatchKind || (exports.MatchKind = {}));
+})(MatchKind || (exports.MatchKind = MatchKind = {}));
 //# sourceMappingURL=internal-match-kind.js.map
 
 /***/ }),
@@ -1740,7 +1765,11 @@ var MatchKind;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -1753,7 +1782,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -1803,8 +1832,8 @@ exports.dirname = dirname;
  * or `C:` are expanded based on the current working directory.
  */
 function ensureAbsoluteRoot(root, itemPath) {
-    assert_1.default(root, `ensureAbsoluteRoot parameter 'root' must not be empty`);
-    assert_1.default(itemPath, `ensureAbsoluteRoot parameter 'itemPath' must not be empty`);
+    (0, assert_1.default)(root, `ensureAbsoluteRoot parameter 'root' must not be empty`);
+    (0, assert_1.default)(itemPath, `ensureAbsoluteRoot parameter 'itemPath' must not be empty`);
     // Already rooted
     if (hasAbsoluteRoot(itemPath)) {
         return itemPath;
@@ -1814,7 +1843,7 @@ function ensureAbsoluteRoot(root, itemPath) {
         // Check for itemPath like C: or C:foo
         if (itemPath.match(/^[A-Z]:[^\\/]|^[A-Z]:$/i)) {
             let cwd = process.cwd();
-            assert_1.default(cwd.match(/^[A-Z]:\\/i), `Expected current directory to start with an absolute drive root. Actual '${cwd}'`);
+            (0, assert_1.default)(cwd.match(/^[A-Z]:\\/i), `Expected current directory to start with an absolute drive root. Actual '${cwd}'`);
             // Drive letter matches cwd? Expand to cwd
             if (itemPath[0].toUpperCase() === cwd[0].toUpperCase()) {
                 // Drive only, e.g. C:
@@ -1839,11 +1868,11 @@ function ensureAbsoluteRoot(root, itemPath) {
         // Check for itemPath like \ or \foo
         else if (normalizeSeparators(itemPath).match(/^\\$|^\\[^\\]/)) {
             const cwd = process.cwd();
-            assert_1.default(cwd.match(/^[A-Z]:\\/i), `Expected current directory to start with an absolute drive root. Actual '${cwd}'`);
+            (0, assert_1.default)(cwd.match(/^[A-Z]:\\/i), `Expected current directory to start with an absolute drive root. Actual '${cwd}'`);
             return `${cwd[0]}:\\${itemPath.substr(1)}`;
         }
     }
-    assert_1.default(hasAbsoluteRoot(root), `ensureAbsoluteRoot parameter 'root' must have an absolute root`);
+    (0, assert_1.default)(hasAbsoluteRoot(root), `ensureAbsoluteRoot parameter 'root' must have an absolute root`);
     // Otherwise ensure root ends with a separator
     if (root.endsWith('/') || (IS_WINDOWS && root.endsWith('\\'))) {
         // Intentionally empty
@@ -1860,7 +1889,7 @@ exports.ensureAbsoluteRoot = ensureAbsoluteRoot;
  * `\\hello\share` and `C:\hello` (and using alternate separator).
  */
 function hasAbsoluteRoot(itemPath) {
-    assert_1.default(itemPath, `hasAbsoluteRoot parameter 'itemPath' must not be empty`);
+    (0, assert_1.default)(itemPath, `hasAbsoluteRoot parameter 'itemPath' must not be empty`);
     // Normalize separators
     itemPath = normalizeSeparators(itemPath);
     // Windows
@@ -1877,7 +1906,7 @@ exports.hasAbsoluteRoot = hasAbsoluteRoot;
  * `\`, `\hello`, `\\hello\share`, `C:`, and `C:\hello` (and using alternate separator).
  */
 function hasRoot(itemPath) {
-    assert_1.default(itemPath, `isRooted parameter 'itemPath' must not be empty`);
+    (0, assert_1.default)(itemPath, `isRooted parameter 'itemPath' must not be empty`);
     // Normalize separators
     itemPath = normalizeSeparators(itemPath);
     // Windows
@@ -1945,7 +1974,11 @@ exports.safeTrimTrailingSeparator = safeTrimTrailingSeparator;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -1958,7 +1991,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -1983,7 +2016,7 @@ class Path {
         this.segments = [];
         // String
         if (typeof itemPath === 'string') {
-            assert_1.default(itemPath, `Parameter 'itemPath' must not be empty`);
+            (0, assert_1.default)(itemPath, `Parameter 'itemPath' must not be empty`);
             // Normalize slashes and trim unnecessary trailing slash
             itemPath = pathHelper.safeTrimTrailingSeparator(itemPath);
             // Not rooted
@@ -2010,24 +2043,24 @@ class Path {
         // Array
         else {
             // Must not be empty
-            assert_1.default(itemPath.length > 0, `Parameter 'itemPath' must not be an empty array`);
+            (0, assert_1.default)(itemPath.length > 0, `Parameter 'itemPath' must not be an empty array`);
             // Each segment
             for (let i = 0; i < itemPath.length; i++) {
                 let segment = itemPath[i];
                 // Must not be empty
-                assert_1.default(segment, `Parameter 'itemPath' must not contain any empty segments`);
+                (0, assert_1.default)(segment, `Parameter 'itemPath' must not contain any empty segments`);
                 // Normalize slashes
                 segment = pathHelper.normalizeSeparators(itemPath[i]);
                 // Root segment
                 if (i === 0 && pathHelper.hasRoot(segment)) {
                     segment = pathHelper.safeTrimTrailingSeparator(segment);
-                    assert_1.default(segment === pathHelper.dirname(segment), `Parameter 'itemPath' root segment contains information for multiple segments`);
+                    (0, assert_1.default)(segment === pathHelper.dirname(segment), `Parameter 'itemPath' root segment contains information for multiple segments`);
                     this.segments.push(segment);
                 }
                 // All other segments
                 else {
                     // Must not contain slash
-                    assert_1.default(!segment.includes(path.sep), `Parameter 'itemPath' contains unexpected path separators`);
+                    (0, assert_1.default)(!segment.includes(path.sep), `Parameter 'itemPath' contains unexpected path separators`);
                     this.segments.push(segment);
                 }
             }
@@ -2065,7 +2098,11 @@ exports.Path = Path;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -2078,7 +2115,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -2166,7 +2203,11 @@ exports.partialMatch = partialMatch;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -2179,7 +2220,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -2211,9 +2252,9 @@ class Pattern {
         else {
             // Convert to pattern
             segments = segments || [];
-            assert_1.default(segments.length, `Parameter 'segments' must not empty`);
+            (0, assert_1.default)(segments.length, `Parameter 'segments' must not empty`);
             const root = Pattern.getLiteral(segments[0]);
-            assert_1.default(root && pathHelper.hasAbsoluteRoot(root), `Parameter 'segments' first element must be a root path`);
+            (0, assert_1.default)(root && pathHelper.hasAbsoluteRoot(root), `Parameter 'segments' first element must be a root path`);
             pattern = new internal_path_1.Path(segments).toString().trim();
             if (patternOrNegate) {
                 pattern = `!${pattern}`;
@@ -2307,13 +2348,13 @@ class Pattern {
      */
     static fixupPattern(pattern, homedir) {
         // Empty
-        assert_1.default(pattern, 'pattern cannot be empty');
+        (0, assert_1.default)(pattern, 'pattern cannot be empty');
         // Must not contain `.` segment, unless first segment
         // Must not contain `..` segment
         const literalSegments = new internal_path_1.Path(pattern).segments.map(x => Pattern.getLiteral(x));
-        assert_1.default(literalSegments.every((x, i) => (x !== '.' || i === 0) && x !== '..'), `Invalid pattern '${pattern}'. Relative pathing '.' and '..' is not allowed.`);
+        (0, assert_1.default)(literalSegments.every((x, i) => (x !== '.' || i === 0) && x !== '..'), `Invalid pattern '${pattern}'. Relative pathing '.' and '..' is not allowed.`);
         // Must not contain globs in root, e.g. Windows UNC path \\foo\b*r
-        assert_1.default(!pathHelper.hasRoot(pattern) || literalSegments[0], `Invalid pattern '${pattern}'. Root segment must not contain globs.`);
+        (0, assert_1.default)(!pathHelper.hasRoot(pattern) || literalSegments[0], `Invalid pattern '${pattern}'. Root segment must not contain globs.`);
         // Normalize slashes
         pattern = pathHelper.normalizeSeparators(pattern);
         // Replace leading `.` segment
@@ -2323,8 +2364,8 @@ class Pattern {
         // Replace leading `~` segment
         else if (pattern === '~' || pattern.startsWith(`~${path.sep}`)) {
             homedir = homedir || os.homedir();
-            assert_1.default(homedir, 'Unable to determine HOME directory');
-            assert_1.default(pathHelper.hasAbsoluteRoot(homedir), `Expected HOME directory to be a rooted path. Actual '${homedir}'`);
+            (0, assert_1.default)(homedir, 'Unable to determine HOME directory');
+            (0, assert_1.default)(pathHelper.hasAbsoluteRoot(homedir), `Expected HOME directory to be a rooted path. Actual '${homedir}'`);
             pattern = Pattern.globEscape(homedir) + pattern.substr(1);
         }
         // Replace relative drive root, e.g. pattern is C: or C:foo
@@ -40137,7 +40178,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.findChangesInSourceRepo = void 0;
+exports.findChangesInSourceRepo = findChangesInSourceRepo;
 const versions_finder_1 = __nccwpck_require__(6563);
 const core = __importStar(__nccwpck_require__(2186));
 async function findChangesInSourceRepo(config, sourceRepo, octokit) {
@@ -40214,7 +40255,6 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit) {
         };
     }
 }
-exports.findChangesInSourceRepo = findChangesInSourceRepo;
 
 
 /***/ }),
@@ -40251,7 +40291,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.loadConfigFromYaml = exports.configSchema = void 0;
+exports.configSchema = void 0;
+exports.loadConfigFromYaml = loadConfigFromYaml;
 const z = __importStar(__nccwpck_require__(3301));
 const promises_1 = __importDefault(__nccwpck_require__(3292));
 const yaml = __importStar(__nccwpck_require__(1917));
@@ -40286,7 +40327,8 @@ const pullRequestSchema = z.object({
     commitHistory: pullRequestCommitHistorySchema.optional(),
     cleanupExistingAutomatorBranches: z.boolean().optional(),
     alwaysCreateNew: z.boolean().optional(),
-    leaveOpenOnlyNumberOfPRs: z.number().optional()
+    leaveOpenOnlyNumberOfPRs: z.number().optional(),
+    includeGitHubOwnerInDescription: z.boolean().optional()
 });
 const versioningSchemeSchema = z.union([
     z.literal('commit-sha-only'),
@@ -40297,13 +40339,18 @@ const versioningSchema = z.object({
     scheme: versioningSchemeSchema,
     resolveTagsPattern: z.string().optional()
 });
+const artifactConfigSchema = z.object({
+    summaryMarkdownAs: z.string().optional(),
+    summaryJsonAs: z.string().optional()
+});
 // Main Config schema
 exports.configSchema = z.object({
     id: z.string(),
     pullRequest: pullRequestSchema,
     versioning: versioningSchema.optional(),
     sourceRepos: z.array(sourceRepoConfigSchema),
-    regex: z.array(z.string()).optional()
+    regex: z.array(z.string()).optional(),
+    artifacts: artifactConfigSchema.optional()
 });
 async function loadConfigFromYaml(configPath, configOverride) {
     const fileConfigContent = await promises_1.default.readFile(configPath);
@@ -40315,7 +40362,6 @@ async function loadConfigFromYaml(configPath, configOverride) {
     }
     return exports.configSchema.parse(config);
 }
-exports.loadConfigFromYaml = loadConfigFromYaml;
 
 
 /***/ }),
@@ -40349,7 +40395,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = void 0;
+exports.run = run;
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const z = __importStar(__nccwpck_require__(3301));
@@ -40357,6 +40403,7 @@ const config_1 = __nccwpck_require__(6373);
 const changes_1 = __nccwpck_require__(5572);
 const pull_request_1 = __nccwpck_require__(4773);
 const request_error_1 = __nccwpck_require__(537);
+const summary_artifacts_1 = __nccwpck_require__(6895);
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -40396,6 +40443,7 @@ async function run() {
             core.info(`Found changes in ${allRepoChanges.length} source repos. Creating a new PR or updating an existing one.`);
             await (0, pull_request_1.createPullRequest)(config, allRepoChanges, defaultOctokit);
             core.setOutput('detected-changes', allRepoChanges.map(c => c.sourceRepo.repo).join(', '));
+            await (0, summary_artifacts_1.generateSummaryArtifacts)(config, allRepoChanges);
         }
     }
     catch (error) {
@@ -40418,7 +40466,6 @@ async function run() {
         }
     }
 }
-exports.run = run;
 
 
 /***/ }),
@@ -40452,7 +40499,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createPullRequest = void 0;
+exports.createPullRequest = createPullRequest;
+exports.resolveAllPrRefs = resolveAllPrRefs;
 const github = __importStar(__nccwpck_require__(5438));
 const request_error_1 = __nccwpck_require__(537);
 async function createPullRequest(config, allRepoChanges, octokit) {
@@ -40550,7 +40598,6 @@ async function createPullRequest(config, allRepoChanges, octokit) {
         }
     }
 }
-exports.createPullRequest = createPullRequest;
 async function getFileContent(octokit, path, branchName) {
     const gitOpsRepo = github.context.repo;
     try {
@@ -40678,7 +40725,11 @@ async function generatePrSummaryText(config, allRepoChanges) {
     prSummaryText += '\n\n';
     for (const repoChanges of allRepoChanges) {
         prSummaryText += '\n\n --- \n\n';
-        prSummaryText += `## ${repoChanges.sourceRepo.repo}\n\n`;
+        let repoName = repoChanges.sourceRepo.repo.split('/')[1];
+        if (config.pullRequest.includeGitHubOwnerInDescription) {
+            repoName = repoChanges.sourceRepo.repo;
+        }
+        prSummaryText += `## ${repoName}\n\n`;
         prSummaryText += `### Versions:\n\n`;
         prSummaryText += `\n\n :fast_forward: Updated to: [\`${repoChanges.currentVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${repoChanges.currentVersion}).\n\nExisting versions:\n`;
         prSummaryText += `| File | Current Version |\n`;
@@ -40708,6 +40759,86 @@ function resolveAllPrRefs(message, repoChanges) {
         message = message.replace(prRef, `https://github.com/${repoChanges.sourceRepo.repo}/pull/${prNumber}`);
     }
     return message;
+}
+
+
+/***/ }),
+
+/***/ 6895:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.generateSummaryArtifacts = generateSummaryArtifacts;
+const promises_1 = __importDefault(__nccwpck_require__(3292));
+const pull_request_1 = __nccwpck_require__(4773);
+const core = __importStar(__nccwpck_require__(2186));
+async function generateSummaryArtifacts(config, allRepoChanges) {
+    if (config.artifacts?.summaryMarkdownAs) {
+        const summaryMarkdownPath = config.artifacts.summaryMarkdownAs;
+        const summaryMarkdownContent = generateSummaryMarkdownContent(config, allRepoChanges);
+        core.info(`Writing summary markdown to ${summaryMarkdownPath}`);
+        const summaryMarkdownPathDir = summaryMarkdownPath
+            .split('/')
+            .slice(0, -1)
+            .join('/');
+        await promises_1.default.mkdir(summaryMarkdownPathDir, { recursive: true });
+        await promises_1.default.writeFile(summaryMarkdownPath, summaryMarkdownContent);
+    }
+    if (config.artifacts?.summaryJsonAs) {
+        const summaryJsonPath = config.artifacts.summaryJsonAs;
+        const summaryJsonContent = JSON.stringify(allRepoChanges, null, 2);
+        core.info(`Writing summary json to ${summaryJsonPath}`);
+        const summaryJsonPathDir = summaryJsonPath.split('/').slice(0, -1).join('/');
+        await promises_1.default.mkdir(summaryJsonPathDir, { recursive: true });
+        await promises_1.default.writeFile(summaryJsonPath, summaryJsonContent);
+    }
+}
+function generateSummaryMarkdownContent(config, allRepoChanges) {
+    let content = `# Summary of Changes\n\n`;
+    for (const repoChanges of allRepoChanges) {
+        let repoName = repoChanges.sourceRepo.repo.split('/')[1];
+        if (config.pullRequest.includeGitHubOwnerInDescription) {
+            repoName = repoChanges.sourceRepo.repo;
+        }
+        content += `## ${repoName}\n\n`;
+        content += `## Version Changes\n\n`;
+        content += `${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.version}\``).join(', ')} -> \`${repoChanges.currentVersion}\`\n\n`;
+        content += `### Commits\n\n`;
+        for (const commit of repoChanges.commits) {
+            const shortMessage = (0, pull_request_1.resolveAllPrRefs)(commit.commit.message.split('\n')[0], repoChanges);
+            content += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`;
+        }
+        content += '\n';
+    }
+    return content;
 }
 
 
@@ -40745,7 +40876,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.findVersions = void 0;
+exports.findVersions = findVersions;
 const glob = __importStar(__nccwpck_require__(8090));
 const promises_1 = __importDefault(__nccwpck_require__(3292));
 async function findVersions(config, releaseFiles) {
@@ -40790,7 +40921,6 @@ async function findVersions(config, releaseFiles) {
     }
     return Array.from(results.values());
 }
-exports.findVersions = findVersions;
 
 
 /***/ }),

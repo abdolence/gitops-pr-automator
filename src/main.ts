@@ -6,6 +6,7 @@ import { loadConfigFromYaml } from './config'
 import { findChangesInSourceRepo, FoundChanges } from './changes'
 import { createPullRequest } from './pull-request'
 import { RequestError } from '@octokit/request-error'
+import { generateSummaryArtifacts } from './summary-artifacts'
 
 /**
  * The main function for the action.
@@ -68,6 +69,7 @@ export async function run(): Promise<void> {
         'detected-changes',
         allRepoChanges.map(c => c.sourceRepo.repo).join(', ')
       )
+      await generateSummaryArtifacts(config, allRepoChanges)
     }
   } catch (error) {
     // Fail the workflow run if an error occurs
