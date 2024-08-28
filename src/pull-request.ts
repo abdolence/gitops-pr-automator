@@ -5,11 +5,17 @@ import { FoundChanges } from './changes'
 
 type Octokit = ReturnType<typeof github.getOctokit>
 
+interface PullRequestInfo {
+  html_url: string
+  number: number
+  id: number
+}
+
 export async function createPullRequest(
   config: Config,
   allRepoChanges: FoundChanges[],
   octokit: Octokit
-) {
+): Promise<PullRequestInfo> {
   const gitOpsRepo = github.context.repo
   const { data: repoData } = await octokit.rest.repos.get({
     owner: gitOpsRepo.owner,
@@ -90,6 +96,12 @@ export async function createPullRequest(
       allRepoChanges,
       pullRequest.head.ref
     )
+
+    return {
+      html_url: pullRequest.html_url,
+      number: pullRequest.number,
+      id: pullRequest.id
+    }
   } else {
     if (config.pullRequest.cleanupExistingAutomatorBranches) {
       await removeAllAutomatorBranches(config, octokit)
@@ -144,6 +156,11 @@ export async function createPullRequest(
         pullRequest.node_id,
         config.pullRequest.enableAutoMerge
       )
+    }
+    return {
+      html_url: pullRequest.html_url,
+      number: pullRequest.number,
+      id: pullRequest.id
     }
   }
 }

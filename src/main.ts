@@ -64,11 +64,18 @@ export async function run(): Promise<void> {
       core.info(
         `Found changes in ${allRepoChanges.length} source repos. Creating a new PR or updating an existing one.`
       )
-      await createPullRequest(config, allRepoChanges, defaultOctokit)
+      const pullRequestInfo = await createPullRequest(
+        config,
+        allRepoChanges,
+        defaultOctokit
+      )
       core.setOutput(
         'detected-changes',
         allRepoChanges.map(c => c.sourceRepo.repo).join(', ')
       )
+      core.setOutput('pull-request-url', pullRequestInfo.html_url)
+      core.setOutput('pull-request-number', pullRequestInfo.number.toString())
+      core.setOutput('pull-request-id', pullRequestInfo.id.toString())
       await generateSummaryArtifacts(config, allRepoChanges)
     }
   } catch (error) {
