@@ -40441,8 +40441,11 @@ async function run() {
         }
         else {
             core.info(`Found changes in ${allRepoChanges.length} source repos. Creating a new PR or updating an existing one.`);
-            await (0, pull_request_1.createPullRequest)(config, allRepoChanges, defaultOctokit);
+            const pullRequestInfo = await (0, pull_request_1.createPullRequest)(config, allRepoChanges, defaultOctokit);
             core.setOutput('detected-changes', allRepoChanges.map(c => c.sourceRepo.repo).join(', '));
+            core.setOutput('pull-request-url', pullRequestInfo.html_url);
+            core.setOutput('pull-request-number', pullRequestInfo.number.toString());
+            core.setOutput('pull-request-id', pullRequestInfo.id.toString());
             await (0, summary_artifacts_1.generateSummaryArtifacts)(config, allRepoChanges);
         }
     }
@@ -40555,6 +40558,11 @@ async function createPullRequest(config, allRepoChanges, octokit) {
             body: prSummaryText
         });
         await commitChanges(octokit, pullRequest.head.ref, allRepoChanges, pullRequest.head.ref);
+        return {
+            html_url: pullRequest.html_url,
+            number: pullRequest.number,
+            id: pullRequest.id
+        };
     }
     else {
         if (config.pullRequest.cleanupExistingAutomatorBranches) {
@@ -40596,6 +40604,11 @@ async function createPullRequest(config, allRepoChanges, octokit) {
         if (config.pullRequest.enableAutoMerge) {
             await enableAutoMergeOnPR(octokit, pullRequest.node_id, config.pullRequest.enableAutoMerge);
         }
+        return {
+            html_url: pullRequest.html_url,
+            number: pullRequest.number,
+            id: pullRequest.id
+        };
     }
 }
 async function getFileContent(octokit, path, branchName) {
