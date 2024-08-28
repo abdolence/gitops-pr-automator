@@ -35,6 +35,12 @@ outputs:
   detected-changes:
     description:
       'Comma-separated list of repositories that have changes detected.'
+  pull-request-url:
+    description: 'URL of the created pull request.'
+  pull-request-number:
+    description: 'PR number if was created.'
+  pull-request-id:
+    description: 'PR ID if was created.'
 
 runs:
   using: node20
