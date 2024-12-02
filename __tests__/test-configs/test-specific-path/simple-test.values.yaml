@@ -1,0 +1,5 @@
+someKey: someValue
+image:
+  repository: some-repo
+  tag: 6f8e9b83e22a2fc1805df62de016e94aabe2b9dd
+  otherKey: otherValue
