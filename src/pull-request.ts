@@ -228,19 +228,24 @@ async function commitChanges(
 
   for (const repoChanges of allRepoChanges) {
     for (const version of repoChanges.repoVersionsToUpdate) {
-      for (const file of version.files) {
-        let fileToUpdate = filesToUpdate.get(file.gitPath)
-        if (!fileToUpdate) {
-          fileToUpdate = {
-            gitPath: file.gitPath,
-            content: file.content,
-            currentVersion: repoChanges.currentVersion
-          }
-          filesToUpdate.set(file.gitPath, fileToUpdate)
+      const file = version.file
+      let fileToUpdate = filesToUpdate.get(file.gitPath)
+      if (!fileToUpdate) {
+        fileToUpdate = {
+          gitPath: file.gitPath,
+          content: file.content,
+          currentVersion: version.newVersion
         }
+        filesToUpdate.set(file.gitPath, fileToUpdate)
+      }
+      fileToUpdate.content = fileToUpdate.content.replaceAll(
+        file.matchedRegex,
+        version.newVersion
+      )
+      if (version.newVersionSha && file.matchedShaRegex) {
         fileToUpdate.content = fileToUpdate.content.replaceAll(
-          file.matchedRegex,
-          repoChanges.currentVersion
+          file.matchedShaRegex,
+          version.newVersionSha
         )
       }
     }
@@ -370,14 +375,16 @@ async function generatePrSummaryText(
       repoName = repoChanges.sourceRepo.repo
     }
     prSummaryText += `## ${repoName}\n\n`
-    prSummaryText += `### Versions:\n\n`
-    prSummaryText += `\n\n :fast_forward: Updated to: [\`${repoChanges.currentVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${repoChanges.currentVersion}).\n\nExisting versions:\n`
+    prSummaryText += `### Versions update:\n\n`
 
-    prSummaryText += `| File | Current Version |\n`
-    prSummaryText += `| ------- | ----- |\n`
+    prSummaryText += `| File | Current Version | New Version |\n`
+    prSummaryText += `| ------- | ----- | ----- |\n`
     for (const version of repoChanges.repoVersionsToUpdate) {
-      for (const file of version.files) {
-        prSummaryText += `| ${file.gitPath} | [\`${version.version.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.version}) |\n`
+      const file = version.file
+      if (version.existingVersionSha && version.newVersionSha) {
+        prSummaryText += `| ${file.gitPath} | [\`${version.existingVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.existingVersionSha}) | [\`${version.newVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.newVersionSha}) | \n`
+      } else {
+        prSummaryText += `| ${file.gitPath} | ${version.existingVersion} |\n`
       }
     }
 

@@ -7,6 +7,7 @@ import { findChangesInSourceRepo, FoundChanges } from './changes'
 import { createPullRequest } from './pull-request'
 import { RequestError } from '@octokit/request-error'
 import { generateSummaryArtifacts } from './summary-artifacts'
+import { parseInputVersions } from './input-versions'
 
 /**
  * The main function for the action.
@@ -45,13 +46,29 @@ export async function run(): Promise<void> {
       repoAccessOctokit = defaultOctokit
     }
 
+    const inputVersions = core.getInput('versions')
+    const overrideVersions = parseInputVersions(inputVersions)
+
+    if (overrideVersions.length > 0) {
+      console.log(
+        `Override versions: ${overrideVersions.map(v => `${JSON.stringify(v)}`).join(', ')}`
+      )
+    } else {
+      if (inputVersions && inputVersions.trim().length > 0) {
+        console.warn(`No valid override versions provided: ${inputVersions}`)
+      } else {
+        console.log(`No override versions provided: ${inputVersions}`)
+      }
+    }
+
     const allRepoChanges: FoundChanges[] = []
 
     for (const sourceRepo of config.sourceRepos) {
       const repoChanges = await findChangesInSourceRepo(
         config,
         sourceRepo,
-        repoAccessOctokit
+        repoAccessOctokit,
+        overrideVersions
       )
       if (repoChanges) {
         allRepoChanges.push(repoChanges)
