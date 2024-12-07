@@ -1,9 +1,9 @@
 someKey: someValue
 image1:
   repository: some-repo
-  tag: test-specific-path:v1.3.0
+  tag: ef1250f9f2ab89ff8f9ce97e05c7ec8a1d29f32e
   otherKey: otherValue
 image2:
   repository: some-repo
-  tag: test-specific-path:v1.3.0
+  tag: ef1250f9f2ab89ff8f9ce97e05c7ec8a1d29f32e
   otherKey: otherValue
