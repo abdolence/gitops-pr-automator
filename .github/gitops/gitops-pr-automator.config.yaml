@@ -21,6 +21,12 @@ sourceRepos:
     ref: heads/master
     releaseFiles:
       - path: '**/__tests__/test-configs/*.values.yaml'
+      - path: '**/__tests__/test-configs/test-specific-path/simple-test.values.yaml'
+        id: 'test-specific-path'
+        regex:
+          - '(?<=(version: ))v[0-9]+.[0-9]+.[0-9]+(?=(.*))'
+        githubShaRegex:
+          - '(?<=(github-sha: ))[a-f0-9]{40}(?=(.*))'
 artifacts:
   summaryMarkdownAs: 'output/changes-summary.md'
   summaryJsonAs: 'output/changes-summary.json'
