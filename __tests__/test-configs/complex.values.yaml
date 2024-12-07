@@ -3,6 +3,6 @@ images:
   - name: image.test1
     value: test1
   - name: image.tag
-    value: test-specific-path:v1.3.0
+    value: ef1250f9f2ab89ff8f9ce97e05c7ec8a1d29f32e
   - name: image.test2
     value: test2
