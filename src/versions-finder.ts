@@ -7,22 +7,23 @@ export interface FoundVersionedFile {
   gitPath: string
   content: string
   matchedRegex: RegExp
-}
-
-export interface FoundVersion {
+  matchedShaRegex?: RegExp
+  pathId?: string
   version: string
-  files: FoundVersionedFile[]
+  versionSha?: string
 }
 
 export async function findVersions(
   config: Config,
   releaseFiles: ReleaseFileConfig[]
-): Promise<FoundVersion[]> {
-  const results = new Map<string, FoundVersion>()
+): Promise<FoundVersionedFile[]> {
+  const results: Map<string, FoundVersionedFile> = new Map()
   for (const fileConfig of releaseFiles) {
     const regexes = fileConfig.regex || config.regex || []
+    const githubShaRegex =
+      fileConfig.githubShaRegex || config.githubShaRegex || []
     console.debug(
-      `Finding version changes in release files: ${fileConfig.path} with regex: ${regexes}`
+      `Finding version changes in release files: ${fileConfig.path} with regex: ${regexes}. Id: ${fileConfig.id}. ShaRegex: ${githubShaRegex}`
     )
     const globber = await glob.create(fileConfig.path)
     const fileResults = await globber.glob()
@@ -36,8 +37,28 @@ export async function findVersions(
         for (const matched of matchedArray) {
           if (matched && matched[0] && matched[0].trim().length > 0) {
             const version = matched[0].trim()
-            console.debug(`Found version: ${version} in a file: ${filePath}`)
-            const existing = results.get(version)
+            let versionSha: string | undefined = undefined
+            let matchedShaRegex: RegExp | undefined = undefined
+            if (githubShaRegex.length > 0) {
+              console.debug(`Checking for sha in file: ${filePath}`)
+              for (const shaRegexStr of githubShaRegex) {
+                const shaRegex = new RegExp(shaRegexStr, 'gm')
+                const shaMatch = fileContent.match(shaRegex)
+                if (shaMatch && shaMatch[0] && shaMatch[0].trim().length > 0) {
+                  versionSha = shaMatch[0].trim()
+                  matchedShaRegex = shaRegex
+                  console.debug(
+                    `Found GitHub SHA: ${versionSha} in file: ${filePath}`
+                  )
+                  break
+                }
+              }
+            } else {
+              versionSha = version
+            }
+            console.debug(
+              `Found version: ${version} in a file: ${filePath}. Sha: ${versionSha}. PathId: ${fileConfig.id}`
+            )
             const gitPath = filePath
               .replace(process.cwd(), '')
               .replace(/\\/g, '/')
@@ -47,15 +68,13 @@ export async function findVersions(
               absolutePath: filePath,
               gitPath: gitPath,
               content: fileContent,
-              matchedRegex: fileRegex
+              matchedRegex: fileRegex,
+              matchedShaRegex: matchedShaRegex,
+              pathId: fileConfig.id,
+              version,
+              versionSha
             }
-
-            if (existing) {
-              existing.files.push(versionedFile)
-              results.set(version, existing)
-            } else {
-              results.set(version, { version, files: [versionedFile] })
-            }
+            results.set(filePath, versionedFile)
           }
         }
       }

@@ -37,6 +37,8 @@ describe('action', () => {
           pullRequest:
             cleanupExistingAutomatorBranches: true
           `
+        case 'versions':
+          return `abdolence/gitops-pr-automator:test-specific-path=v1.3.0,ef1250f9f2ab89ff8f9ce97e05c7ec8a1d29f32e`
         default:
           return ''
       }

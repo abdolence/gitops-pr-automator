@@ -7,7 +7,9 @@ import { merge } from 'ts-deepmerge'
 const releaseFileConfigSchema = z.object({
   path: z.string(),
   ignore: z.string().optional(),
-  regex: z.array(z.string()).optional()
+  regex: z.array(z.string()).optional(),
+  githubShaRegex: z.array(z.string()).optional(),
+  id: z.string().optional()
 })
 
 export type ReleaseFileConfig = z.infer<typeof releaseFileConfigSchema>
@@ -71,6 +73,7 @@ export const configSchema = z.object({
   versioning: versioningSchema.optional(),
   sourceRepos: z.array(sourceRepoConfigSchema),
   regex: z.array(z.string()).optional(),
+  githubShaRegex: z.array(z.string()).optional(),
   artifacts: artifactConfigSchema.optional()
 })
 

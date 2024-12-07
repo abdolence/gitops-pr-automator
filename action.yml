@@ -30,6 +30,12 @@ inputs:
       'Overrides for the configuration file. This will be merged with the the
       config file.'
     required: false
+  versions:
+    description:
+      'Versions provided for all required repos and tracked files by the trigger
+      event instead of reading head SHA from repository. The format is
+      "<repo1>:<pathId>=<version>,<versionSha>;...".'
+    required: false
 
 outputs:
   detected-changes:

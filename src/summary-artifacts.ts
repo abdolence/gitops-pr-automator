@@ -44,7 +44,7 @@ function generateSummaryMarkdownContent(
     }
     content += `## ${repoName}\n\n`
     content += `## Version Changes\n\n`
-    content += `${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.version}\``).join(', ')} -> \`${repoChanges.currentVersion}\`\n\n`
+    content += `${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.existingVersion}\``).join(', ')} -> ${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.newVersion}\``).join(', ')}\n\n`
     content += `### Commits\n\n`
     for (const commit of repoChanges.commits) {
       const shortMessage = resolveAllPrRefs(

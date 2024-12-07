@@ -1,7 +1,8 @@
 import { Config, SourceRepoConfig } from './config'
-import { findVersions, FoundVersion } from './versions-finder'
+import { findVersions, FoundVersionedFile } from './versions-finder'
 import * as github from '@actions/github'
 import * as core from '@actions/core'
+import { IncomingVersion } from './input-versions'
 
 export interface GitCommitParent {
   sha: string
@@ -18,6 +19,7 @@ export interface GitCommit {
     author: {
       name: string
       email: string
+      date: string
     }
     url: string
   }
@@ -30,27 +32,37 @@ export interface GitCommit {
   parents: GitCommitParent[]
 }
 
+export interface RepoVersionToUpdate {
+  existingVersion: string
+  existingVersionSha?: string
+  newVersion: string
+  newVersionSha?: string
+  file: FoundVersionedFile
+}
+
 export interface FoundChanges {
   sourceRepo: SourceRepoConfig
-  repoVersionsToUpdate: FoundVersion[]
-  currentVersion: string
-  currentVersionSha: string
+  repoVersionsToUpdate: RepoVersionToUpdate[]
   commits: GitCommit[]
 }
 
 export async function findChangesInSourceRepo(
   config: Config,
   sourceRepo: SourceRepoConfig,
-  octokit: ReturnType<typeof github.getOctokit>
+  octokit: ReturnType<typeof github.getOctokit>,
+  overrideVersions: IncomingVersion[]
 ): Promise<FoundChanges | undefined> {
-  const repoVersions = await findVersions(config, sourceRepo.releaseFiles || [])
+  const foundVersionFiles = await findVersions(
+    config,
+    sourceRepo.releaseFiles || []
+  )
   core.info(
-    `Found versions: [${repoVersions.map(ver => ver.version).join(', ')}] for '${sourceRepo.repo}'`
+    `Found versions: [${foundVersionFiles.map(ver => `${ver.gitPath}:${ver.version}`).join(', ')}] for '${sourceRepo.repo}'`
   )
 
   const [owner, repo] = sourceRepo.repo.split('/')
 
-  console.debug(`Getting the current version of ${sourceRepo.repo}`)
+  console.debug(`Getting the head SHA of ${sourceRepo.repo}`)
 
   const { data: refData } = await octokit.rest.git.getRef({
     owner: owner,
@@ -58,15 +70,17 @@ export async function findChangesInSourceRepo(
     ref: sourceRepo.ref || 'heads/master'
   })
 
-  const currentVersionSha = refData.object.sha
-  let currentVersion = currentVersionSha
+  const headVersionSha = refData.object.sha
+  console.debug(`Head SHA of ${sourceRepo.repo} is ${headVersionSha}`)
+
+  const suitableTagsMap = new Map<string, string>()
 
   if (
     config.versioning?.scheme === 'commit-tags-or-sha' ||
     config.versioning?.scheme === 'commit-tags-only'
   ) {
     console.debug(
-      `Getting the current version tag of ${sourceRepo.repo} at ${currentVersionSha}`
+      `Getting the current version tag of ${sourceRepo.repo} at ${headVersionSha}`
     )
 
     // Check for git tags that match the current version SHA
@@ -79,48 +93,64 @@ export async function findChangesInSourceRepo(
     const tagsMatchRegex = config.versioning.resolveTagsPattern
       ? new RegExp(config.versioning.resolveTagsPattern)
       : /refs\/tags\/v\d+\.\d+\.\d+/
-    const suitableTags = tagsData
-      .filter(tag => tag.object.sha === currentVersionSha)
+    const suitableTagsList = tagsData
       .filter(tag => tagsMatchRegex.test(tag.ref))
-    console.debug(
-      `Found: ${suitableTags.length}/${tagsData.length} suitable tags at ${currentVersionSha} according to the pattern: ${tagsMatchRegex.source} for ${sourceRepo.repo}`
-    )
+      .map(tag => {
+        return {
+          ver: tag.ref.replace('refs/tags/', ''),
+          sha: tag.object.sha
+        }
+      })
 
-    if (suitableTags.length > 0) {
-      currentVersion = suitableTags[0].ref.replace('refs/tags/', '')
-    }
-
-    if (
-      config.versioning.scheme === 'commit-tags-only' &&
-      suitableTags.length === 0
-    ) {
-      return undefined
+    for (const tag of suitableTagsList) {
+      suitableTagsMap.set(tag.sha, tag.ver)
     }
   }
 
+  const repoVersions: RepoVersionToUpdate[] = foundVersionFiles
+    .map(foundVer => {
+      const { newVersion, newVersionSha } = getNewVersionFor(
+        sourceRepo,
+        foundVer,
+        headVersionSha,
+        overrideVersions,
+        suitableTagsMap
+      )
+      return {
+        existingVersion: foundVer.version,
+        existingVersionSha: foundVer.versionSha,
+        newVersion: newVersion,
+        newVersionSha: newVersionSha,
+        file: foundVer
+      }
+    })
+    .filter(ver => ver.existingVersion !== ver.newVersion)
+
   core.info(
-    `Current version in ${sourceRepo.repo} is ${currentVersion}. Sha: ${currentVersionSha}`
+    `Found versions to update: [${repoVersions.map(ver => `${ver.file.gitPath}:${ver.existingVersion} -> ${ver.newVersion}`).join(', ')}] for '${sourceRepo.repo}'`
   )
 
-  const repoVersionsToUpdate = repoVersions.filter(
-    ver => ver.version !== currentVersion
-  )
-
-  if (repoVersionsToUpdate.length === 0) {
+  if (repoVersions.length === 0) {
     core.info(`No new version found for ${sourceRepo.repo}`)
     return undefined
   } else {
     core.info(`New version found for ${sourceRepo.repo}`)
     const relevantCommits: GitCommit[] = []
     if (!config.pullRequest.commitHistory?.disable) {
-      for (const ver of repoVersionsToUpdate) {
+      for (const ver of repoVersions) {
+        if (
+          ver.existingVersionSha === undefined ||
+          ver.newVersionSha === undefined
+        ) {
+          continue
+        }
         const commits = await octokit.paginate(
           octokit.rest.repos.compareCommits,
           {
             owner,
             repo,
-            base: ver.version, // Older commit
-            head: currentVersionSha // Newer commit
+            base: ver.existingVersionSha, // Older commit
+            head: ver.newVersionSha // Newer commit
           },
           response => response.data.commits
         )
@@ -138,13 +168,56 @@ export async function findChangesInSourceRepo(
           }
         }
       }
+      relevantCommits.sort((a, b) => {
+        if (a.commit.author.date > b.commit.author.date) {
+          return -1
+        } else if (a.commit.author.date < b.commit.author.date) {
+          return 1
+        }
+        return 0
+      })
     }
     return {
       sourceRepo,
-      repoVersionsToUpdate,
-      currentVersion: currentVersion,
-      currentVersionSha: currentVersionSha,
+      repoVersionsToUpdate: repoVersions,
       commits: relevantCommits
+    }
+  }
+}
+
+function getNewVersionFor(
+  sourceRepo: SourceRepoConfig,
+  foundVer: FoundVersionedFile,
+  headVersionSha: string,
+  overrideVersions: IncomingVersion[],
+  suitableTagsMap: Map<string, string>
+): { newVersion: string; newVersionSha: string } {
+  const override = overrideVersions.find(
+    ov =>
+      ov.repo === sourceRepo.repo &&
+      (ov.pathId === foundVer.pathId || !ov.pathId)
+  )
+
+  if (override) {
+    console.info(
+      `Overriding version for ${sourceRepo.repo} with ${override.newVersion} for ${foundVer.gitPath}`
+    )
+    return {
+      newVersion: override.newVersion,
+      newVersionSha: override.newVersionSha
+    }
+  } else {
+    const tagsByHeadSha = suitableTagsMap.get(headVersionSha)
+    if (tagsByHeadSha) {
+      console.info(
+        `Overriding version for ${sourceRepo.repo} with ${tagsByHeadSha} for ${foundVer.gitPath}`
+      )
+      return { newVersion: tagsByHeadSha, newVersionSha: headVersionSha }
+    } else {
+      console.info(
+        `Using head version for ${sourceRepo.repo} for ${foundVer.gitPath}`
+      )
+      return { newVersion: headVersionSha, newVersionSha: headVersionSha }
     }
   }
 }
