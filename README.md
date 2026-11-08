@@ -87,7 +87,8 @@ jobs:
     name: Create a PR with updated version references
     runs-on: ubuntu-latest
 
-    # These permissions are sufficient only if a GitHub App token is used.
+    # Applies to GITHUB_TOKEN only, which is used here by the checkout step.
+    # The action receives its own token, see "GitHub tokens and permissions".
     permissions:
       contents: read
 
@@ -217,11 +218,13 @@ The head commit is the head of the `ref` of the source repository, which is
 
 The description of the pull request is built from `pullRequestComment`, and
 then, for every source repository with changes, a table of the files with their
-current and new versions and the list of the commits between them. The commit
-subjects link to the commits, and the `#123` references in them link to the pull
-requests of the source repository. A commit is followed by `by @login` of its
-author when the author is a GitHub account. The Markdown summary file lists the
-commits the same way.
+current and new versions and the list of the commits between them. A full commit
+SHA in the table is shortened to eight characters, and a tag or any other
+version is shown whole. A version links to its commit when its commit SHA is
+known, and is plain text otherwise. The commit subjects link to the commits, and
+the `#123` references in them link to the pull requests of the source
+repository. A commit is followed by `by @login` of its author when the author is
+a GitHub account. The Markdown summary file lists the commits the same way.
 
 ![Pull request created by the action](docs/pr.png)
 
@@ -297,7 +300,7 @@ A configuration file is a YAML document with these top-level options:
 
 - `id` (required): unique identifier of the configuration. Branch names of the
   pull requests start with it, and the action finds its own open pull requests
-  by it, so every configuration of a GitOps repository needs its own id;
+  by it, so every configuration of a GitOps repository needs its own ID;
 - `pullRequest` (required): the pull request parameters, see
   [Pull request options](#pull-request-options);
 - `sourceRepos` (required): the repositories to monitor, see
@@ -385,7 +388,7 @@ share fragments of the file. `config-override` is parsed the same way.
 A branch belongs to a configuration only when it is named exactly
 `<id>-<timestamp>`, where the timestamp is the UTC time of the run with `-` in
 place of `:` and `.`, for example `app-2026-11-08T10-15-30-123Z`. Configurations
-with ids such as `app` and `app-staging` can therefore share a GitOps
+with IDs such as `app` and `app-staging` can therefore share a GitOps
 repository. The pull requests of a configuration are the open pull requests with
 such a branch.
 
@@ -401,7 +404,7 @@ and opens a pull request against it.
 Each item of `sourceRepos` has:
 
 - `repo` (required): the repository to monitor, as `owner/name`;
-- `ref`: the git reference whose head commit is the new version, for example
+- `ref`: the Git reference whose head commit is the new version, for example
   `heads/master` or `heads/main`. Default is `heads/master`;
 - `releaseFiles`: the files of the GitOps repository that hold the version of
   this source repository.
@@ -418,14 +421,15 @@ Each item of `releaseFiles` has:
 - `id`: an identifier of the release file, which the `versions` input of the
   action refers to as `pathId`.
 
-The version found by `regex` is compared with the new version, and the file is
-changed only when they differ. The commit history in the pull request is read
-from the commit SHA of the current version to the commit SHA of the new one.
-Without `githubShaRegex` the version itself is used as the current commit SHA,
-which is right for the `commit-sha-only` scheme. With tags as versions,
-`githubShaRegex` finds the commit SHA stored next to the tag in the file (the
-first match of the first expression that matches), and it is replaced with the
-new commit SHA together with the version:
+Every expression of `regex` is handled on its own: the version it finds is
+compared with the new version, and the file is changed only when they differ.
+The commit history in the pull request is read from the commit SHA of the
+current version to the commit SHA of the new one. Without `githubShaRegex` the
+version itself is used as the current commit SHA, which is right for the
+`commit-sha-only` scheme. With tags as versions, `githubShaRegex` finds the
+commit SHA stored next to the tag in the file (the first match of the first
+expression that matches), and it is replaced with the new commit SHA together
+with the version:
 
 ```yaml
 releaseFiles:
@@ -449,7 +453,8 @@ it is.
 In the examples above, the action looks for a string of 40 hexadecimal
 characters following `tag:` and replaces it with the new version. Several
 expressions can be listed in `regex`. Expressions run with the `g` and `m`
-flags, and every match of the expression in a file is replaced.
+flags. Every match of every listed expression in a file is replaced, and the
+table of the pull request has a row for each expression that matches the file.
 
 Some other useful examples of regular expressions:
 
@@ -511,7 +516,9 @@ For example, to use the number in a later step:
 
 - name: Show the pull request
   if: steps.create-pr.outputs.pull-request-number
-  run: echo "${{ steps.create-pr.outputs.pull-request-url }}"
+  env:
+    PULL_REQUEST_URL: ${{ steps.create-pr.outputs.pull-request-url }}
+  run: echo "$PULL_REQUEST_URL"
 ```
 
 ### Overriding the configuration
@@ -573,7 +580,7 @@ keep the commit history in the pull request, see
 
 ## GitHub tokens and permissions
 
-Recommended way to use the GitHub token is to create a separate GitHub
+The recommended way to use the GitHub token is to create a separate GitHub
 application, following this
 [guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/making-authenticated-api-requests-with-a-github-app-in-a-github-actions-workflow).
 In this case you can restrict the application to the particular repositories and
@@ -593,12 +600,17 @@ The action uses two tokens:
   this as well. A separate token keeps read access to the source repositories
   out of the token that can write to the GitOps repository.
 
-The `permissions` of the workflow job apply to `GITHUB_TOKEN` only. Reading the
-repository contents is sufficient when the tokens passed to the action are a
-GitHub App token or a fine-grained token, as in the workflow above.
+The `permissions` of the workflow job apply to `GITHUB_TOKEN` only. When the
+tokens passed to the action are a GitHub App token or a fine-grained token, as
+in the workflow above, `GITHUB_TOKEN` is used by the checkout step alone and
+`contents: read` is sufficient. When `GITHUB_TOKEN` itself is passed as
+`github-token`, the job needs `contents: write` and `pull-requests: write`, and
+the repository must allow GitHub Actions to create pull requests.
 
 The token that triggers the workflow from the source repositories, used in the
-trigger step above, needs permission to run workflows in the GitOps repository.
+trigger step above, needs the "Actions" repository permission with write access
+to the GitOps repository when it is a fine-grained token or a GitHub App token,
+or the `repo` scope when it is a classic personal access token.
 
 ## Runner requirements
 

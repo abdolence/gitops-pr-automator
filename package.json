@@ -2,7 +2,7 @@
   "name": "gitops-pr-automator",
   "description": "GitHub Action that opens pull requests to update versions in a GitOps configuration repository",
   "version": "1.5.0",
-  "author": "",
+  "author": "Abdulla Abdurakhmanov",
   "type": "module",
   "private": true,
   "homepage": "https://github.com/abdolence/gitops-pr-automator",
