@@ -220,11 +220,12 @@ The description of the pull request is built from `pullRequestComment`, and
 then, for every source repository with changes, a table of the files with their
 current and new versions and the list of the commits between them. A full commit
 SHA in the table is shortened to eight characters, and a tag or any other
-version is shown whole. A version links to its commit when its commit SHA is
-known, and is plain text otherwise. The commit subjects link to the commits, and
-the `#123` references in them link to the pull requests of the source
-repository. A commit is followed by `by @login` of its author when the author is
-a GitHub account. The Markdown summary file lists the commits the same way.
+version is shown whole. A version is a link to its commit when its commit SHA is
+known, and inline code otherwise. Every commit is listed as its short SHA, which
+links to the commit, followed by its subject. The `#123` references in the
+subjects link to the pull requests of the source repository. A commit is
+followed by `by @login` of its author when the author is a GitHub account. The
+Markdown summary file lists the commits the same way.
 
 ![Pull request created by the action](docs/pr.png)
 
@@ -453,8 +454,10 @@ it is.
 In the examples above, the action looks for a string of 40 hexadecimal
 characters following `tag:` and replaces it with the new version. Several
 expressions can be listed in `regex`. Expressions run with the `g` and `m`
-flags. Every match of every listed expression in a file is replaced, and the
-table of the pull request has a row for each expression that matches the file.
+flags. Every match of every listed expression in a file is replaced. An
+expression with a match that differs from the new version gets a row in the
+table of the pull request, and the first such match is shown as the current
+version.
 
 Some other useful examples of regular expressions:
 
@@ -606,6 +609,14 @@ in the workflow above, `GITHUB_TOKEN` is used by the checkout step alone and
 `contents: read` is sufficient. When `GITHUB_TOKEN` itself is passed as
 `github-token`, the job needs `contents: write` and `pull-requests: write`, and
 the repository must allow GitHub Actions to create pull requests.
+
+`GITHUB_TOKEN` is limited to the repository that runs the workflow, so a private
+source repository cannot be read with it. This is the case when it is passed as
+`github-token` and `github-token-read-repos` is not set. A pull request opened
+with `GITHUB_TOKEN` creates its workflow runs in an approval-required state, so
+its required checks stay pending until a user with write access approves the
+runs, and auto-merge waits for them. A GitHub App token or a personal access
+token avoids both.
 
 The token that triggers the workflow from the source repositories, used in the
 trigger step above, needs the "Actions" repository permission with write access
