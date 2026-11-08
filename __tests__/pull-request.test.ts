@@ -95,17 +95,17 @@ describe('createPullRequest', () => {
         {
           number: 2,
           created_at: '2024-02-01T00:00:00Z',
-          head: { ref: 'automator-2' }
+          head: { ref: 'automator-2024-02-01T00-00-00-000Z' }
         },
         {
           number: 1,
           created_at: '2024-01-01T00:00:00Z',
-          head: { ref: 'automator-1' }
+          head: { ref: 'automator-2024-01-01T00-00-00-000Z' }
         },
         {
           number: 3,
           created_at: '2024-03-01T00:00:00Z',
-          head: { ref: 'automator-3' }
+          head: { ref: 'automator-2024-03-01T00-00-00-000Z' }
         }
       ],
       []
@@ -118,7 +118,9 @@ describe('createPullRequest', () => {
     )
 
     expect(calls.closedPrs).toEqual([1])
-    expect(calls.deletedRefs).toEqual(['heads/automator-1'])
+    expect(calls.deletedRefs).toEqual([
+      'heads/automator-2024-01-01T00-00-00-000Z'
+    ])
     expect(calls.updatedPr).toEqual([3])
   })
 
@@ -151,5 +153,50 @@ describe('createPullRequest', () => {
     expect(calls.deletedRefs).toEqual([
       'heads/automator-2023-12-01T00-00-00-000Z'
     ])
+  })
+
+  describe('with another configuration whose id extends this one', () => {
+    const own = 'automator-2024-01-01T00-00-00-000Z'
+    const foreign = 'automator-staging-2024-02-01T00-00-00-000Z'
+
+    it('updates and keeps only its own pull requests', async () => {
+      const { octokit, calls } = fakeOctokit(
+        [
+          {
+            number: 1,
+            created_at: '2024-01-01T00:00:00Z',
+            head: { ref: own }
+          },
+          {
+            number: 2,
+            created_at: '2024-02-01T00:00:00Z',
+            head: { ref: foreign }
+          }
+        ],
+        []
+      )
+
+      await createPullRequest(
+        configWith({ leaveOpenOnlyNumberOfPRs: 1 }),
+        [],
+        octokit
+      )
+
+      expect(calls.updatedPr).toEqual([1])
+      expect(calls.closedPrs).toEqual([])
+      expect(calls.deletedRefs).toEqual([])
+    })
+
+    it('does not delete the branches of the other configuration', async () => {
+      const { octokit, calls } = fakeOctokit([], ['master', own, foreign])
+
+      await createPullRequest(
+        configWith({ cleanupExistingAutomatorBranches: true }),
+        [],
+        octokit
+      )
+
+      expect(calls.deletedRefs).toEqual([`heads/${own}`])
+    })
   })
 })

@@ -193,6 +193,21 @@ async function getFileContent(
   }
 }
 
+/**
+ * Whether the branch was named by the configuration: its id followed by the
+ * timestamp. Matching the id prefix alone would also take the branches of a
+ * configuration whose id extends this one (`app` and `app-staging`).
+ */
+function isAutomatorBranch(configId: string, branchName: string): boolean {
+  const prefix = `${configId}-`
+  return (
+    branchName.startsWith(prefix) &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(
+      branchName.slice(prefix.length)
+    )
+  )
+}
+
 /** The open pull requests of the configuration, the newest first. */
 async function findExistingPullRequests(config: Config, octokit: Octokit) {
   const gitOpsRepo = github.context.repo
@@ -204,7 +219,7 @@ async function findExistingPullRequests(config: Config, octokit: Octokit) {
   })
 
   return pullRequests
-    .filter(pr => pr.head.ref.startsWith(`${config.id}-`))
+    .filter(pr => isAutomatorBranch(config.id, pr.head.ref))
     .sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -306,7 +321,7 @@ async function removeStaleAutomatorBranches(
   const openBranchNames = new Set(openPullRequests.map(pr => pr.head.ref))
   const staleBranches = branches.filter(
     branch =>
-      branch.name.startsWith(`${config.id}-`) &&
+      isAutomatorBranch(config.id, branch.name) &&
       !openBranchNames.has(branch.name)
   )
 
