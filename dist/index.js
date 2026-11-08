@@ -54885,8 +54885,7 @@ async function run() {
     catch (error) {
         // Fail the workflow run if an error occurs
         if (error instanceof ZodError) {
-            console.error(error.issues); // Detailed validation errors
-            setFailed(error.issues.toString());
+            setFailed(prettifyError(error));
         }
         else if (error instanceof RequestError) {
             console.error(error);
