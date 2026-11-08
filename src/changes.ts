@@ -1,8 +1,8 @@
-import { Config, SourceRepoConfig } from './config'
-import { findVersions, FoundVersionedFile } from './versions-finder'
+import { Config, SourceRepoConfig } from './config.js'
+import { findVersions, FoundVersionedFile } from './versions-finder.js'
 import * as github from '@actions/github'
 import * as core from '@actions/core'
-import { IncomingVersion } from './input-versions'
+import { IncomingVersion } from './input-versions.js'
 
 export interface GitCommitParent {
   sha: string
@@ -31,6 +31,14 @@ export interface GitCommit {
   comments_url: string
   parents: GitCommitParent[]
 }
+
+// paginate() types the compare response as the bare commits array, but at
+// runtime it passes the body through with the commits under `commits`.
+type CompareResponse = Awaited<
+  ReturnType<
+    ReturnType<typeof github.getOctokit>['rest']['repos']['compareCommits']
+  >
+>['data']
 
 export interface RepoVersionToUpdate {
   existingVersion: string
@@ -152,7 +160,7 @@ export async function findChangesInSourceRepo(
             base: ver.existingVersionSha, // Older commit
             head: ver.newVersionSha // Newer commit
           },
-          response => response.data.commits
+          response => (response.data as unknown as CompareResponse).commits
         )
 
         for (const commit of commits) {

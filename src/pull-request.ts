@@ -1,7 +1,7 @@
-import { Config, MergeStrategies } from './config'
+import { Config, MergeStrategies } from './config.js'
 import * as github from '@actions/github'
 import { RequestError } from '@octokit/request-error'
-import { FoundChanges } from './changes'
+import { FoundChanges } from './changes.js'
 
 type Octokit = ReturnType<typeof github.getOctokit>
 

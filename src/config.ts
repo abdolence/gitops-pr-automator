@@ -1,6 +1,15 @@
 import * as z from 'zod'
 import fs from 'fs/promises'
-import * as yaml from 'js-yaml'
+import {
+  CORE_SCHEMA,
+  binaryTag,
+  load,
+  mergeTag,
+  omapTag,
+  pairsTag,
+  setTag,
+  timestampTag
+} from 'js-yaml'
 import { merge } from 'ts-deepmerge'
 
 // Schema for ReleaseFileConfig
@@ -80,15 +89,30 @@ export const configSchema = z.object({
 // Type for your validated config
 export type Config = z.infer<typeof configSchema>
 
+// Merge keys (`<<`) and the YAML 1.1 types stay enabled because existing
+// config files may rely on them; js-yaml's default schema no longer has them.
+const CONFIG_YAML_SCHEMA = CORE_SCHEMA.withTags(
+  mergeTag,
+  timestampTag,
+  binaryTag,
+  omapTag,
+  pairsTag,
+  setTag
+)
+
 export async function loadConfigFromYaml(
   configPath: string,
   configOverride?: string
 ): Promise<Config> {
   const fileConfigContent = await fs.readFile(configPath)
-  const fileConfigYaml: any = yaml.load(fileConfigContent.toString())
+  const fileConfigYaml: any = load(fileConfigContent.toString(), {
+    schema: CONFIG_YAML_SCHEMA
+  })
   let config: any = fileConfigYaml
   if (configOverride) {
-    const overrideConfig: any = yaml.load(configOverride)
+    const overrideConfig: any = load(configOverride, {
+      schema: CONFIG_YAML_SCHEMA
+    })
     config = merge(fileConfigYaml, overrideConfig)
   }
   return configSchema.parse(config)

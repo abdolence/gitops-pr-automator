@@ -1,7 +1,7 @@
-import { Config } from './config'
-import { FoundChanges } from './changes'
+import { Config } from './config.js'
+import { FoundChanges } from './changes.js'
 import fs from 'fs/promises'
-import { resolveAllPrRefs } from './pull-request'
+import { resolveAllPrRefs } from './pull-request.js'
 import * as core from '@actions/core'
 
 export async function generateSummaryArtifacts(

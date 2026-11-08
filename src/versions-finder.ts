@@ -1,4 +1,4 @@
-import { Config, ReleaseFileConfig } from './config'
+import { Config, ReleaseFileConfig } from './config.js'
 import * as glob from '@actions/glob'
 import fs from 'fs/promises'
 
