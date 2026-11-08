@@ -29646,6 +29646,7 @@ function file_command_prepareKeyValueMessage(key, value) {
 //# sourceMappingURL=file-command.js.map
 ;// CONCATENATED MODULE: external "path"
 const external_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("path");
+var external_path_default = /*#__PURE__*/__nccwpck_require__.n(external_path_namespaceObject);
 // EXTERNAL MODULE: external "http"
 var external_http_ = __nccwpck_require__(8611);
 // EXTERNAL MODULE: external "https"
@@ -54293,6 +54294,8 @@ function glob_hashFiles(patterns_1) {
 
 
 async function findVersions(config, releaseFiles) {
+    // One entry per file and expression: each expression replaces its own
+    // matches, so an entry per file would drop all but one of them.
     const results = new Map();
     for (const fileConfig of releaseFiles) {
         const regexes = fileConfig.regex || config.regex || [];
@@ -54303,10 +54306,10 @@ async function findVersions(config, releaseFiles) {
             : fileConfig.path);
         const fileResults = await globber.glob();
         for (const filePath of fileResults) {
+            console.debug('Checking file: ', filePath);
+            const fileContent = (await promises_default().readFile(filePath)).toString();
             for (const fileRegexStr of regexes) {
                 const fileRegex = new RegExp(fileRegexStr, 'gm');
-                console.debug('Checking file: ', filePath);
-                const fileContent = (await promises_default().readFile(filePath)).toString();
                 const matchedArray = fileContent.matchAll(fileRegex);
                 for (const matched of matchedArray) {
                     if (matched && matched[0] && matched[0].trim().length > 0) {
@@ -54344,7 +54347,7 @@ async function findVersions(config, releaseFiles) {
                             version,
                             versionSha
                         };
-                        results.set(filePath, versionedFile);
+                        results.set(`${filePath}\0${fileRegexStr}`, versionedFile);
                     }
                 }
             }
@@ -54535,10 +54538,10 @@ async function createPullRequest(config, allRepoChanges, octokit) {
             head: pullRequest.base.ref
         });
         // Update the PR summary text
-        await octokit.rest.issues.update({
+        await octokit.rest.pulls.update({
             owner: gitOpsRepo.owner,
             repo: gitOpsRepo.repo,
-            issue_number: pullRequest.number,
+            pull_number: pullRequest.number,
             body: prSummaryText
         });
         await commitChanges(octokit, pullRequest.head.ref, allRepoChanges, pullRequest.head.ref);
@@ -54751,24 +54754,37 @@ async function generatePrSummaryText(config, allRepoChanges) {
         prSummaryText += `| File | Current Version | New Version |\n`;
         prSummaryText += `| ------- | ----- | ----- |\n`;
         for (const version of repoChanges.repoVersionsToUpdate) {
-            const file = version.file;
-            if (version.existingVersionSha && version.newVersionSha) {
-                prSummaryText += `| ${file.gitPath} | [\`${version.existingVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.existingVersionSha}) | [\`${version.newVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.newVersionSha}) | \n`;
-            }
-            else {
-                prSummaryText += `| ${file.gitPath} | ${version.existingVersion} |\n`;
-            }
+            const sourceRepo = repoChanges.sourceRepo.repo;
+            const current = versionCell(version.existingVersion, version.existingVersionSha, sourceRepo);
+            const next = versionCell(version.newVersion, version.newVersionSha, sourceRepo);
+            prSummaryText += `| ${version.file.gitPath} | ${current} | ${next} |\n`;
         }
         if (!config.pullRequest.commitHistory?.disable) {
             prSummaryText += `\n\n### :memo: Changes:\n`;
             for (const commit of repoChanges.commits) {
-                const shortMessage = resolveAllPrRefs(commit.commit.message.split('\n')[0], repoChanges);
-                const login = commitAuthorLogin(commit);
-                prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage}${login ? ` by @${login}` : ''}\n`;
+                prSummaryText += formatCommitLine(commit, repoChanges);
             }
         }
     }
     return prSummaryText;
+}
+const FULL_COMMIT_SHA = /^([0-9a-f]{40}|[0-9a-f]{64})$/i;
+/**
+ * A table cell for a version. A full commit SHA is shortened, a tag or any
+ * other version is kept whole, and the cell links to the commit when it is
+ * known.
+ */
+function versionCell(version, sha, sourceRepo) {
+    const label = FULL_COMMIT_SHA.test(version) ? version.slice(0, 8) : version;
+    return sha
+        ? `[\`${label}\`](https://github.com/${sourceRepo}/commits/${sha})`
+        : `\`${label}\``;
+}
+/** A Markdown list item for a commit, ending with a newline. */
+function formatCommitLine(commit, repoChanges) {
+    const shortMessage = resolveAllPrRefs(commit.commit.message.split('\n')[0], repoChanges);
+    const login = commitAuthorLogin(commit);
+    return `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage}${login ? ` by @${login}` : ''}\n`;
 }
 // Resolve all PR references in a string to their full URLs
 function resolveAllPrRefs(message, repoChanges) {
@@ -54792,21 +54808,18 @@ async function generateSummaryArtifacts(config, allRepoChanges) {
         const summaryMarkdownPath = config.artifacts.summaryMarkdownAs;
         const summaryMarkdownContent = generateSummaryMarkdownContent(config, allRepoChanges);
         info(`Writing summary markdown to ${summaryMarkdownPath}`);
-        const summaryMarkdownPathDir = summaryMarkdownPath
-            .split('/')
-            .slice(0, -1)
-            .join('/');
-        await promises_default().mkdir(summaryMarkdownPathDir, { recursive: true });
-        await promises_default().writeFile(summaryMarkdownPath, summaryMarkdownContent);
+        await writeFileCreatingDirectories(summaryMarkdownPath, summaryMarkdownContent);
     }
     if (config.artifacts?.summaryJsonAs) {
         const summaryJsonPath = config.artifacts.summaryJsonAs;
         const summaryJsonContent = JSON.stringify(allRepoChanges, null, 2);
         info(`Writing summary json to ${summaryJsonPath}`);
-        const summaryJsonPathDir = summaryJsonPath.split('/').slice(0, -1).join('/');
-        await promises_default().mkdir(summaryJsonPathDir, { recursive: true });
-        await promises_default().writeFile(summaryJsonPath, summaryJsonContent);
+        await writeFileCreatingDirectories(summaryJsonPath, summaryJsonContent);
     }
+}
+async function writeFileCreatingDirectories(filePath, content) {
+    await promises_default().mkdir(external_path_default().dirname(filePath), { recursive: true });
+    await promises_default().writeFile(filePath, content);
 }
 function generateSummaryMarkdownContent(config, allRepoChanges) {
     let content = `# Summary of Changes\n\n`;
@@ -54820,9 +54833,7 @@ function generateSummaryMarkdownContent(config, allRepoChanges) {
         content += `${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.existingVersion}\``).join(', ')} -> ${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.newVersion}\``).join(', ')}\n\n`;
         content += `### Commits\n\n`;
         for (const commit of repoChanges.commits) {
-            const shortMessage = resolveAllPrRefs(commit.commit.message.split('\n')[0], repoChanges);
-            const login = commitAuthorLogin(commit);
-            content += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage}${login ? ` by @${login}` : ''}\n`;
+            content += formatCommitLine(commit, repoChanges);
         }
         content += '\n';
     }
