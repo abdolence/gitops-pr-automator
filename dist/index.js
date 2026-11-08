@@ -54310,46 +54310,40 @@ async function findVersions(config, releaseFiles) {
             const fileContent = (await promises_default().readFile(filePath)).toString();
             for (const fileRegexStr of regexes) {
                 const fileRegex = new RegExp(fileRegexStr, 'gm');
-                const matchedArray = fileContent.matchAll(fileRegex);
-                for (const matched of matchedArray) {
-                    if (matched && matched[0] && matched[0].trim().length > 0) {
-                        const version = matched[0].trim();
-                        let versionSha = undefined;
-                        let matchedShaRegex = undefined;
-                        if (githubShaRegex.length > 0) {
-                            console.debug(`Checking for sha in file: ${filePath}`);
-                            for (const shaRegexStr of githubShaRegex) {
-                                const shaRegex = new RegExp(shaRegexStr, 'gm');
-                                const shaMatch = fileContent.match(shaRegex);
-                                if (shaMatch && shaMatch[0] && shaMatch[0].trim().length > 0) {
-                                    versionSha = shaMatch[0].trim();
-                                    matchedShaRegex = shaRegex;
-                                    console.debug(`Found GitHub SHA: ${versionSha} in file: ${filePath}`);
-                                    break;
-                                }
-                            }
-                        }
-                        else {
-                            versionSha = version;
-                        }
-                        console.debug(`Found version: ${version} in a file: ${filePath}. Sha: ${versionSha}. PathId: ${fileConfig.id}`);
-                        const gitPath = filePath
-                            .replace(process.cwd(), '')
-                            .replace(/\\/g, '/')
-                            .replace(/^\//, '');
-                        const versionedFile = {
-                            absolutePath: filePath,
-                            gitPath: gitPath,
-                            content: fileContent,
-                            matchedRegex: fileRegex,
-                            matchedShaRegex: matchedShaRegex,
-                            pathId: fileConfig.id,
-                            version,
-                            versionSha
-                        };
-                        results.set(`${filePath}\0${fileRegexStr}`, versionedFile);
+                const matchedVersions = new Set(Array.from(fileContent.matchAll(fileRegex), matched => matched[0].trim()).filter(version => version.length > 0));
+                if (matchedVersions.size === 0) {
+                    continue;
+                }
+                let fileSha = undefined;
+                let matchedShaRegex = undefined;
+                for (const shaRegexStr of githubShaRegex) {
+                    const shaRegex = new RegExp(shaRegexStr, 'gm');
+                    const shaMatch = fileContent.match(shaRegex);
+                    if (shaMatch && shaMatch[0] && shaMatch[0].trim().length > 0) {
+                        fileSha = shaMatch[0].trim();
+                        matchedShaRegex = shaRegex;
+                        console.debug(`Found GitHub SHA: ${fileSha} in file: ${filePath}`);
+                        break;
                     }
                 }
+                const versions = Array.from(matchedVersions, version => ({
+                    version,
+                    versionSha: githubShaRegex.length > 0 ? fileSha : version
+                }));
+                console.debug(`Found versions: ${versions.map(v => v.version)} in a file: ${filePath}. Sha: ${fileSha}. PathId: ${fileConfig.id}`);
+                const gitPath = filePath
+                    .replace(process.cwd(), '')
+                    .replace(/\\/g, '/')
+                    .replace(/^\//, '');
+                results.set(`${filePath}\0${fileRegexStr}`, {
+                    absolutePath: filePath,
+                    gitPath,
+                    content: fileContent,
+                    matchedRegex: fileRegex,
+                    matchedShaRegex,
+                    pathId: fileConfig.id,
+                    versions
+                });
             }
         }
     }
@@ -54369,7 +54363,7 @@ function commitAuthorLogin(commit) {
 }
 async function findChangesInSourceRepo(config, sourceRepo, octokit, overrideVersions) {
     const foundVersionFiles = await findVersions(config, sourceRepo.releaseFiles || []);
-    info(`Found versions: [${foundVersionFiles.map(ver => `${ver.gitPath}:${ver.version}`).join(', ')}] for '${sourceRepo.repo}'`);
+    info(`Found versions: [${foundVersionFiles.map(ver => `${ver.gitPath}:${ver.versions.map(v => v.version).join('|')}`).join(', ')}] for '${sourceRepo.repo}'`);
     const [owner, repo] = sourceRepo.repo.split('/');
     console.debug(`Getting the head SHA of ${sourceRepo.repo}`);
     const { data: refData } = await octokit.rest.git.getRef({
@@ -54400,14 +54394,17 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit, overrideVers
     }
     const repoVersions = foundVersionFiles.flatMap(foundVer => {
         const newVersionInfo = getNewVersionFor(config, sourceRepo, foundVer, headVersionSha, overrideVersions, suitableTagsMap);
-        if (newVersionInfo === undefined ||
-            newVersionInfo.newVersion === foundVer.version) {
+        if (newVersionInfo === undefined) {
+            return [];
+        }
+        const outdated = foundVer.versions.find(found => found.version !== newVersionInfo.newVersion);
+        if (outdated === undefined) {
             return [];
         }
         return [
             {
-                existingVersion: foundVer.version,
-                existingVersionSha: foundVer.versionSha,
+                existingVersion: outdated.version,
+                existingVersionSha: outdated.versionSha,
                 newVersion: newVersionInfo.newVersion,
                 newVersionSha: newVersionInfo.newVersionSha,
                 file: foundVer
@@ -54423,11 +54420,17 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit, overrideVers
         info(`New version found for ${sourceRepo.repo}`);
         const relevantCommits = [];
         if (!config.pullRequest.commitHistory?.disable) {
+            const comparedRanges = new Set();
             for (const ver of repoVersions) {
                 if (ver.existingVersionSha === undefined ||
                     ver.newVersionSha === undefined) {
                     continue;
                 }
+                const range = `${ver.existingVersionSha}..${ver.newVersionSha}`;
+                if (comparedRanges.has(range)) {
+                    continue;
+                }
+                comparedRanges.add(range);
                 const commits = await octokit.paginate(octokit.rest.repos.compareCommits, {
                     owner,
                     repo,
@@ -54769,11 +54772,6 @@ async function generatePrSummaryText(config, allRepoChanges) {
     return prSummaryText;
 }
 const FULL_COMMIT_SHA = /^([0-9a-f]{40}|[0-9a-f]{64})$/i;
-/**
- * A table cell for a version. A full commit SHA is shortened, a tag or any
- * other version is kept whole, and the cell links to the commit when it is
- * known.
- */
 function versionCell(version, sha, sourceRepo) {
     const label = FULL_COMMIT_SHA.test(version) ? version.slice(0, 8) : version;
     return sha
