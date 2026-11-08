@@ -98,8 +98,7 @@ export async function run(): Promise<void> {
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof z.ZodError) {
-      console.error(error.issues) // Detailed validation errors
-      core.setFailed(error.issues.toString())
+      core.setFailed(z.prettifyError(error))
     } else if (error instanceof RequestError) {
       console.error(error)
       core.setFailed(error.message)
