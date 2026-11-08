@@ -50721,7 +50721,7 @@ const pullRequestSchema = object({
     commitHistory: pullRequestCommitHistorySchema.optional(),
     cleanupExistingAutomatorBranches: schemas_boolean().optional(),
     alwaysCreateNew: schemas_boolean().optional(),
-    leaveOpenOnlyNumberOfPRs: schemas_number().optional(),
+    leaveOpenOnlyNumberOfPRs: schemas_number().int().nonnegative().optional(),
     includeGitHubOwnerInDescription: schemas_boolean().optional()
 });
 const versioningSchemeSchema = union([
@@ -54296,7 +54296,9 @@ async function findVersions(config, releaseFiles) {
         const regexes = fileConfig.regex || config.regex || [];
         const githubShaRegex = fileConfig.githubShaRegex || config.githubShaRegex || [];
         console.debug(`Finding version changes in release files: ${fileConfig.path} with regex: ${regexes}. Id: ${fileConfig.id}. ShaRegex: ${githubShaRegex}`);
-        const globber = await create(fileConfig.path);
+        const globber = await create(fileConfig.ignore
+            ? `${fileConfig.path}\n!${fileConfig.ignore}`
+            : fileConfig.path);
         const fileResults = await globber.glob();
         for (const filePath of fileResults) {
             for (const fileRegexStr of regexes) {
@@ -54377,30 +54379,32 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit, overrideVers
         const tagsMatchRegex = config.versioning.resolveTagsPattern
             ? new RegExp(config.versioning.resolveTagsPattern)
             : /refs\/tags\/v\d+\.\d+\.\d+/;
-        const suitableTagsList = tagsData
+        const suitableTags = await Promise.all(tagsData
             .filter(tag => tagsMatchRegex.test(tag.ref))
-            .map(tag => {
-            return {
-                ver: tag.ref.replace('refs/tags/', ''),
-                sha: tag.object.sha
-            };
-        });
-        for (const tag of suitableTagsList) {
+            .map(async (tag) => ({
+            ver: tag.ref.replace('refs/tags/', ''),
+            sha: await resolveTagCommitSha(octokit, owner, repo, tag)
+        })));
+        for (const tag of suitableTags) {
             suitableTagsMap.set(tag.sha, tag.ver);
         }
     }
-    const repoVersions = foundVersionFiles
-        .map(foundVer => {
-        const { newVersion, newVersionSha } = getNewVersionFor(sourceRepo, foundVer, headVersionSha, overrideVersions, suitableTagsMap);
-        return {
-            existingVersion: foundVer.version,
-            existingVersionSha: foundVer.versionSha,
-            newVersion: newVersion,
-            newVersionSha: newVersionSha,
-            file: foundVer
-        };
-    })
-        .filter(ver => ver.existingVersion !== ver.newVersion);
+    const repoVersions = foundVersionFiles.flatMap(foundVer => {
+        const newVersionInfo = getNewVersionFor(config, sourceRepo, foundVer, headVersionSha, overrideVersions, suitableTagsMap);
+        if (newVersionInfo === undefined ||
+            newVersionInfo.newVersion === foundVer.version) {
+            return [];
+        }
+        return [
+            {
+                existingVersion: foundVer.version,
+                existingVersionSha: foundVer.versionSha,
+                newVersion: newVersionInfo.newVersion,
+                newVersionSha: newVersionInfo.newVersionSha,
+                file: foundVer
+            }
+        ];
+    });
     info(`Found versions to update: [${repoVersions.map(ver => `${ver.file.gitPath}:${ver.existingVersion} -> ${ver.newVersion}`).join(', ')}] for '${sourceRepo.repo}'`);
     if (repoVersions.length === 0) {
         info(`No new version found for ${sourceRepo.repo}`);
@@ -54449,7 +54453,23 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit, overrideVers
         };
     }
 }
-function getNewVersionFor(sourceRepo, foundVer, headVersionSha, overrideVersions, suitableTagsMap) {
+/**
+ * The commit a tag reference points at. An annotated tag's reference points at
+ * a tag object, which has to be followed (tags can be nested) to the commit.
+ */
+async function resolveTagCommitSha(octokit, owner, repo, tag) {
+    let target = tag.object;
+    while (target.type === 'tag') {
+        const { data: tagObject } = await octokit.rest.git.getTag({
+            owner,
+            repo,
+            tag_sha: target.sha
+        });
+        target = tagObject.object;
+    }
+    return target.sha;
+}
+function getNewVersionFor(config, sourceRepo, foundVer, headVersionSha, overrideVersions, suitableTagsMap) {
     const override = overrideVersions.find(ov => ov.repo === sourceRepo.repo &&
         (ov.pathId === foundVer.pathId || !ov.pathId));
     if (override) {
@@ -54464,6 +54484,10 @@ function getNewVersionFor(sourceRepo, foundVer, headVersionSha, overrideVersions
         if (tagsByHeadSha) {
             console.info(`Overriding version for ${sourceRepo.repo} with ${tagsByHeadSha} for ${foundVer.gitPath}`);
             return { newVersion: tagsByHeadSha, newVersionSha: headVersionSha };
+        }
+        else if (config.versioning?.scheme === 'commit-tags-only') {
+            console.info(`No tag at the head of ${sourceRepo.repo}, leaving ${foundVer.gitPath} as is`);
+            return undefined;
         }
         else {
             console.info(`Using head version for ${sourceRepo.repo} for ${foundVer.gitPath}`);
@@ -54493,12 +54517,10 @@ async function createPullRequest(config, allRepoChanges, octokit) {
     const prSummaryText = await generatePrSummaryText(config, allRepoChanges);
     // Find existing PRs
     const existingPRs = await findExistingPullRequests(config, octokit);
-    if (existingPRs.length > 0 && config.pullRequest.leaveOpenOnlyNumberOfPRs) {
-        // Sort PRs by creation date
-        const sortedPRs = [...existingPRs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        // Close the oldest PRs
-        const prsToClose = sortedPRs.slice(config.pullRequest.leaveOpenOnlyNumberOfPRs, sortedPRs.length);
-        console.info(`Found ${existingPRs.length} existing PRs for ${config.id}. Leaving ${config.pullRequest.leaveOpenOnlyNumberOfPRs} PRs open.`);
+    const leaveOpen = config.pullRequest.leaveOpenOnlyNumberOfPRs;
+    const prsToClose = leaveOpen ? existingPRs.slice(leaveOpen) : [];
+    if (leaveOpen && existingPRs.length > 0) {
+        console.info(`Found ${existingPRs.length} existing PRs for ${config.id}. Leaving ${leaveOpen} PRs open.`);
         for (const closePr of prsToClose) {
             await octokit.rest.pulls.update({
                 owner: gitOpsRepo.owner,
@@ -54535,7 +54557,7 @@ async function createPullRequest(config, allRepoChanges, octokit) {
     }
     else {
         if (config.pullRequest.cleanupExistingAutomatorBranches) {
-            await removeAllAutomatorBranches(config, octokit);
+            await removeStaleAutomatorBranches(config, octokit, existingPRs.filter(pr => !prsToClose.includes(pr)));
         }
         // Create a new branch name that includes the config id and the current timestamp to make it unique
         const newBranchName = `${config.id}-${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`;
@@ -54597,14 +54619,27 @@ async function getFileContent(octokit, path, branchName) {
         throw error;
     }
 }
+/**
+ * Whether the branch was named by the configuration: its id followed by the
+ * timestamp. Matching the id prefix alone would also take the branches of a
+ * configuration whose id extends this one (`app` and `app-staging`).
+ */
+function isAutomatorBranch(configId, branchName) {
+    const prefix = `${configId}-`;
+    return (branchName.startsWith(prefix) &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(branchName.slice(prefix.length)));
+}
+/** The open pull requests of the configuration, the newest first. */
 async function findExistingPullRequests(config, octokit) {
     const gitOpsRepo = github_context.repo;
-    const { data: pullRequests } = await octokit.rest.pulls.list({
+    const pullRequests = await octokit.paginate(octokit.rest.pulls.list, {
         owner: gitOpsRepo.owner,
         repo: gitOpsRepo.repo,
         state: 'open'
     });
-    return pullRequests.filter(pr => pr.head.ref.startsWith(`${config.id}-`));
+    return pullRequests
+        .filter(pr => isAutomatorBranch(config.id, pr.head.ref))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 async function commitChanges(octokit, branchName, allRepoChanges, compareBranch) {
     console.info(`Committing changes to branch ${branchName}`);
@@ -54649,25 +54684,21 @@ async function commitChanges(octokit, branchName, allRepoChanges, compareBranch)
         }
     }
 }
-async function removeAllAutomatorBranches(config, octokit) {
+/**
+ * Deletes the automator branches that are not the head of a pull request left
+ * open: deleting the head branch of an open pull request closes it.
+ */
+async function removeStaleAutomatorBranches(config, octokit, openPullRequests) {
     const gitOpsRepo = github_context.repo;
-    const { data: branches } = await octokit.rest.repos.listBranches({
+    const branches = await octokit.paginate(octokit.rest.repos.listBranches, {
         owner: gitOpsRepo.owner,
         repo: gitOpsRepo.repo
     });
-    const automatorBranches = branches.filter(branch => branch.name.startsWith(`${config.id}/`));
-    for (const branch of automatorBranches) {
-        try {
-            await octokit.rest.git.deleteRef({
-                owner: gitOpsRepo.owner,
-                repo: gitOpsRepo.repo,
-                ref: `heads/${branch.name}`
-            });
-        }
-        catch (error) {
-            console.error(`Failed to delete branch ${branch}`);
-            console.error(error);
-        }
+    const openBranchNames = new Set(openPullRequests.map(pr => pr.head.ref));
+    const staleBranches = branches.filter(branch => isAutomatorBranch(config.id, branch.name) &&
+        !openBranchNames.has(branch.name));
+    for (const branch of staleBranches) {
+        await removeAutomatorBranch(octokit, branch.name);
     }
 }
 async function removeAutomatorBranch(octokit, branchName) {
