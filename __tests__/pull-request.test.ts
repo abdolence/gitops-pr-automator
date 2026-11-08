@@ -1,4 +1,5 @@
 import * as github from '@actions/github'
+import { RequestError } from '@octokit/request-error'
 
 import {
   automatorBranchName,
@@ -6,7 +7,7 @@ import {
   isAutomatorBranch
 } from '../src/pull-request.js'
 import { Config } from '../src/config.js'
-import { GitCommit } from '../src/changes.js'
+import { GitCommit, RepoVersionToUpdate } from '../src/changes.js'
 
 type Octokit = ReturnType<typeof github.getOctokit>
 
@@ -42,6 +43,11 @@ function fakeOctokit(
       repos: {
         get: async () => ({ data: { default_branch: 'master' } }),
         listBranches: async () => ({ data: branches.map(name => ({ name })) }),
+        getContent: async () => {
+          throw new RequestError('Not Found', 404, {
+            request: { method: 'GET', url: '', headers: {} }
+          })
+        },
         merge: async () => ({}),
         createOrUpdateFileContents: async () => ({})
       },
@@ -61,8 +67,18 @@ function fakeOctokit(
             base: { ref: 'master' }
           }))
         }),
-        update: async ({ pull_number }: { pull_number: number }) => {
-          calls.closedPrs.push(pull_number)
+        update: async ({
+          pull_number,
+          state
+        }: {
+          pull_number: number
+          state?: string
+        }) => {
+          if (state === 'closed') {
+            calls.closedPrs.push(pull_number)
+          } else {
+            calls.updatedPr.push(pull_number)
+          }
         },
         create: async ({ body }: { body: string }) => {
           calls.createdBodies.push(body)
@@ -70,9 +86,6 @@ function fakeOctokit(
         }
       },
       issues: {
-        update: async ({ issue_number }: { issue_number: number }) => {
-          calls.updatedPr.push(issue_number)
-        },
         addLabels: async () => ({})
       }
     }
@@ -191,6 +204,49 @@ describe('createPullRequest', () => {
 
     expect(calls.createdBodies).toHaveLength(1)
     expect(calls.createdBodies[0]).toContain(sha.slice(0, 8))
+  })
+
+  it('prints the whole version when there is no SHA to link and shortens only SHAs', async () => {
+    const { octokit, calls } = fakeOctokit([], [])
+    const sha = 'abcdef01'.repeat(5)
+    const newSha = '01234567'.repeat(5)
+    const fileOf = (gitPath: string) => ({
+      gitPath,
+      content: '',
+      matchedRegex: /x/g
+    })
+
+    await createPullRequest(
+      configWith({}),
+      [
+        {
+          sourceRepo: { repo: 'owner/source' },
+          repoVersionsToUpdate: [
+            {
+              existingVersion: 'v10.11.11',
+              newVersion: 'v10.11.12',
+              file: fileOf('apps/tagged.yaml')
+            },
+            {
+              existingVersion: sha,
+              existingVersionSha: sha,
+              newVersion: newSha,
+              newVersionSha: newSha,
+              file: fileOf('apps/sha.yaml')
+            }
+          ] satisfies RepoVersionToUpdate[],
+          commits: []
+        }
+      ],
+      octokit
+    )
+
+    const [body] = calls.createdBodies
+    const taggedRow = body.split('\n').find(line => line.includes('tagged'))
+    expect(taggedRow).toContain('v10.11.11')
+    expect(taggedRow).toContain('v10.11.12')
+    expect(body).toContain(`[\`${sha.slice(0, 8)}\`]`)
+    expect(body).not.toContain(`[\`${sha}\`]`)
   })
 
   it('recognises the branch names it writes', () => {

@@ -1,7 +1,7 @@
 import { Config, MergeStrategies } from './config.js'
 import * as github from '@actions/github'
 import { RequestError } from '@octokit/request-error'
-import { commitAuthorLogin, FoundChanges } from './changes.js'
+import { commitAuthorLogin, FoundChanges, GitCommit } from './changes.js'
 
 type Octokit = ReturnType<typeof github.getOctokit>
 
@@ -74,10 +74,10 @@ export async function createPullRequest(
     })
 
     // Update the PR summary text
-    await octokit.rest.issues.update({
+    await octokit.rest.pulls.update({
       owner: gitOpsRepo.owner,
       repo: gitOpsRepo.repo,
-      issue_number: pullRequest.number,
+      pull_number: pullRequest.number,
       body: prSummaryText
     })
 
@@ -407,31 +407,63 @@ async function generatePrSummaryText(
     prSummaryText += `| File | Current Version | New Version |\n`
     prSummaryText += `| ------- | ----- | ----- |\n`
     for (const version of repoChanges.repoVersionsToUpdate) {
-      const file = version.file
-      if (version.existingVersionSha && version.newVersionSha) {
-        prSummaryText += `| ${file.gitPath} | [\`${version.existingVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.existingVersionSha}) | [\`${version.newVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.newVersionSha}) | \n`
-      } else {
-        prSummaryText += `| ${file.gitPath} | ${version.existingVersion} |\n`
-      }
+      const sourceRepo = repoChanges.sourceRepo.repo
+      const current = versionCell(
+        version.existingVersion,
+        version.existingVersionSha,
+        sourceRepo
+      )
+      const next = versionCell(
+        version.newVersion,
+        version.newVersionSha,
+        sourceRepo
+      )
+      prSummaryText += `| ${version.file.gitPath} | ${current} | ${next} |\n`
     }
 
     if (!config.pullRequest.commitHistory?.disable) {
       prSummaryText += `\n\n### :memo: Changes:\n`
       for (const commit of repoChanges.commits) {
-        const shortMessage = resolveAllPrRefs(
-          commit.commit.message.split('\n')[0],
-          repoChanges
-        )
-        const login = commitAuthorLogin(commit)
-        prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage}${login ? ` by @${login}` : ''}\n`
+        prSummaryText += formatCommitLine(commit, repoChanges)
       }
     }
   }
   return prSummaryText
 }
 
+const FULL_COMMIT_SHA = /^([0-9a-f]{40}|[0-9a-f]{64})$/i
+
+/**
+ * A table cell for a version. A full commit SHA is shortened, a tag or any
+ * other version is kept whole, and the cell links to the commit when it is
+ * known.
+ */
+function versionCell(
+  version: string,
+  sha: string | undefined,
+  sourceRepo: string
+): string {
+  const label = FULL_COMMIT_SHA.test(version) ? version.slice(0, 8) : version
+  return sha
+    ? `[\`${label}\`](https://github.com/${sourceRepo}/commits/${sha})`
+    : `\`${label}\``
+}
+
+/** A Markdown list item for a commit, ending with a newline. */
+export function formatCommitLine(
+  commit: GitCommit,
+  repoChanges: FoundChanges
+): string {
+  const shortMessage = resolveAllPrRefs(
+    commit.commit.message.split('\n')[0],
+    repoChanges
+  )
+  const login = commitAuthorLogin(commit)
+  return `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage}${login ? ` by @${login}` : ''}\n`
+}
+
 // Resolve all PR references in a string to their full URLs
-export function resolveAllPrRefs(message: string, repoChanges: FoundChanges) {
+function resolveAllPrRefs(message: string, repoChanges: FoundChanges) {
   const prRefs = message.match(/#[0-9]+/g)
   if (!prRefs) return message
   for (const prRef of prRefs) {
