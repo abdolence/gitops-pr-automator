@@ -55,7 +55,7 @@ const pullRequestSchema = z.object({
   commitHistory: pullRequestCommitHistorySchema.optional(),
   cleanupExistingAutomatorBranches: z.boolean().optional(),
   alwaysCreateNew: z.boolean().optional(),
-  leaveOpenOnlyNumberOfPRs: z.number().optional(),
+  leaveOpenOnlyNumberOfPRs: z.number().int().nonnegative().optional(),
   includeGitHubOwnerInDescription: z.boolean().optional()
 })
 

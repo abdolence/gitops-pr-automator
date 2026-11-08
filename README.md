@@ -259,21 +259,23 @@ A configuration file is a YAML document with these top-level options:
 - `alwaysCreateNew`: when `true`, every run that finds changes creates a new
   branch and pull request. Otherwise the action updates the open pull request of
   the configuration if there is one;
-- `leaveOpenOnlyNumberOfPRs`: a number. Open pull requests of the configuration
-  are sorted by creation date, newest first, and only that number stay open. The
-  older ones are closed and their branches deleted. A pull request created in
-  the same run is not counted;
+- `leaveOpenOnlyNumberOfPRs`: a whole number, zero or more. Open pull requests
+  of the configuration are sorted by creation date, newest first, and only that
+  number stay open. The older ones are closed and their branches deleted. `0`
+  has the same effect as leaving the option unset. A pull request created in the
+  same run is not counted;
 - `cleanupExistingAutomatorBranches`: when `true`, before a new pull request is
   created, the branches of the GitOps repository with names starting with
-  `<id>-` are deleted, except the branches of open pull requests.
+  `<id>-<timestamp>` are deleted, except the branches of open pull requests.
 
 The pull requests of a configuration are the open pull requests with a branch
-name that starts with `<id>-`. When there is one and `alwaysCreateNew` is not
-set, the action merges the base branch into the pull request branch, replaces
-the description and commits the updated files to the same branch; labels and
-auto-merge are set only when the pull request is created. Otherwise it creates a
-branch named `<id>-<timestamp>` from the default branch of the GitOps repository
-and opens a pull request against it.
+named `<id>-<timestamp>`, so that configurations with ids such as `app` and
+`app-staging` can share a GitOps repository. When there is one and
+`alwaysCreateNew` is not set, the action merges the base branch into the pull
+request branch, replaces the description and commits the updated files to the
+same branch; labels and auto-merge are set only when the pull request is
+created. Otherwise it creates a branch named `<id>-<timestamp>` from the default
+branch of the GitOps repository and opens a pull request against it.
 
 ### Source repositories and release files
 

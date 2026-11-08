@@ -39,4 +39,23 @@ sourceRepos:
       { repo: 'owner/second', ref: 'heads/main' }
     ])
   })
+
+  it.each([-1, 1.5])(
+    'rejects leaveOpenOnlyNumberOfPRs of %s',
+    async leaveOpen => {
+      const configPath = path.join(dir, 'config.yaml')
+      await fs.writeFile(
+        configPath,
+        `
+id: leave-open
+pullRequest:
+  title: release
+  leaveOpenOnlyNumberOfPRs: ${leaveOpen}
+sourceRepos: []
+`
+      )
+
+      await expect(loadConfigFromYaml(configPath)).rejects.toThrow()
+    }
+  )
 })
