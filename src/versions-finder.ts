@@ -25,7 +25,11 @@ export async function findVersions(
     console.debug(
       `Finding version changes in release files: ${fileConfig.path} with regex: ${regexes}. Id: ${fileConfig.id}. ShaRegex: ${githubShaRegex}`
     )
-    const globber = await glob.create(fileConfig.path)
+    const globber = await glob.create(
+      fileConfig.ignore
+        ? `${fileConfig.path}\n!${fileConfig.ignore}`
+        : fileConfig.path
+    )
     const fileResults = await globber.glob()
 
     for (const filePath of fileResults) {
