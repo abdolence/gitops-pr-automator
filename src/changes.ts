@@ -101,38 +101,47 @@ export async function findChangesInSourceRepo(
     const tagsMatchRegex = config.versioning.resolveTagsPattern
       ? new RegExp(config.versioning.resolveTagsPattern)
       : /refs\/tags\/v\d+\.\d+\.\d+/
-    const suitableTagsList = tagsData
-      .filter(tag => tagsMatchRegex.test(tag.ref))
-      .map(tag => {
-        return {
+    const suitableTags = await Promise.all(
+      tagsData
+        .filter(tag => tagsMatchRegex.test(tag.ref))
+        .map(async tag => ({
           ver: tag.ref.replace('refs/tags/', ''),
-          sha: tag.object.sha
-        }
-      })
+          sha: await resolveTagCommitSha(octokit, owner, repo, tag)
+        }))
+    )
 
-    for (const tag of suitableTagsList) {
+    for (const tag of suitableTags) {
       suitableTagsMap.set(tag.sha, tag.ver)
     }
   }
 
-  const repoVersions: RepoVersionToUpdate[] = foundVersionFiles
-    .map(foundVer => {
-      const { newVersion, newVersionSha } = getNewVersionFor(
+  const repoVersions: RepoVersionToUpdate[] = foundVersionFiles.flatMap(
+    foundVer => {
+      const newVersionInfo = getNewVersionFor(
+        config,
         sourceRepo,
         foundVer,
         headVersionSha,
         overrideVersions,
         suitableTagsMap
       )
-      return {
-        existingVersion: foundVer.version,
-        existingVersionSha: foundVer.versionSha,
-        newVersion: newVersion,
-        newVersionSha: newVersionSha,
-        file: foundVer
+      if (
+        newVersionInfo === undefined ||
+        newVersionInfo.newVersion === foundVer.version
+      ) {
+        return []
       }
-    })
-    .filter(ver => ver.existingVersion !== ver.newVersion)
+      return [
+        {
+          existingVersion: foundVer.version,
+          existingVersionSha: foundVer.versionSha,
+          newVersion: newVersionInfo.newVersion,
+          newVersionSha: newVersionInfo.newVersionSha,
+          file: foundVer
+        }
+      ]
+    }
+  )
 
   core.info(
     `Found versions to update: [${repoVersions.map(ver => `${ver.file.gitPath}:${ver.existingVersion} -> ${ver.newVersion}`).join(', ')}] for '${sourceRepo.repo}'`
@@ -193,13 +202,36 @@ export async function findChangesInSourceRepo(
   }
 }
 
+/**
+ * The commit a tag reference points at. An annotated tag's reference points at
+ * a tag object, which has to be followed (tags can be nested) to the commit.
+ */
+async function resolveTagCommitSha(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  tag: { object: { sha: string; type: string } }
+): Promise<string> {
+  let target = tag.object
+  while (target.type === 'tag') {
+    const { data: tagObject } = await octokit.rest.git.getTag({
+      owner,
+      repo,
+      tag_sha: target.sha
+    })
+    target = tagObject.object
+  }
+  return target.sha
+}
+
 function getNewVersionFor(
+  config: Config,
   sourceRepo: SourceRepoConfig,
   foundVer: FoundVersionedFile,
   headVersionSha: string,
   overrideVersions: IncomingVersion[],
   suitableTagsMap: Map<string, string>
-): { newVersion: string; newVersionSha: string } {
+): { newVersion: string; newVersionSha: string } | undefined {
   const override = overrideVersions.find(
     ov =>
       ov.repo === sourceRepo.repo &&
@@ -221,6 +253,11 @@ function getNewVersionFor(
         `Overriding version for ${sourceRepo.repo} with ${tagsByHeadSha} for ${foundVer.gitPath}`
       )
       return { newVersion: tagsByHeadSha, newVersionSha: headVersionSha }
+    } else if (config.versioning?.scheme === 'commit-tags-only') {
+      console.info(
+        `No tag at the head of ${sourceRepo.repo}, leaving ${foundVer.gitPath} as is`
+      )
+      return undefined
     } else {
       console.info(
         `Using head version for ${sourceRepo.repo} for ${foundVer.gitPath}`
