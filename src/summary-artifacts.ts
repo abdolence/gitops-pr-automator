@@ -1,7 +1,8 @@
-import { Config } from './config'
-import { FoundChanges } from './changes'
+import { Config } from './config.js'
+import { FoundChanges } from './changes.js'
 import fs from 'fs/promises'
-import { resolveAllPrRefs } from './pull-request'
+import path from 'path'
+import { formatCommitLine } from './pull-request.js'
 import * as core from '@actions/core'
 
 export async function generateSummaryArtifacts(
@@ -15,21 +16,25 @@ export async function generateSummaryArtifacts(
       allRepoChanges
     )
     core.info(`Writing summary markdown to ${summaryMarkdownPath}`)
-    const summaryMarkdownPathDir = summaryMarkdownPath
-      .split('/')
-      .slice(0, -1)
-      .join('/')
-    await fs.mkdir(summaryMarkdownPathDir, { recursive: true })
-    await fs.writeFile(summaryMarkdownPath, summaryMarkdownContent)
+    await writeFileCreatingDirectories(
+      summaryMarkdownPath,
+      summaryMarkdownContent
+    )
   }
   if (config.artifacts?.summaryJsonAs) {
     const summaryJsonPath = config.artifacts.summaryJsonAs
     const summaryJsonContent = JSON.stringify(allRepoChanges, null, 2)
     core.info(`Writing summary json to ${summaryJsonPath}`)
-    const summaryJsonPathDir = summaryJsonPath.split('/').slice(0, -1).join('/')
-    await fs.mkdir(summaryJsonPathDir, { recursive: true })
-    await fs.writeFile(summaryJsonPath, summaryJsonContent)
+    await writeFileCreatingDirectories(summaryJsonPath, summaryJsonContent)
   }
+}
+
+async function writeFileCreatingDirectories(
+  filePath: string,
+  content: string
+): Promise<void> {
+  await fs.mkdir(path.dirname(filePath), { recursive: true })
+  await fs.writeFile(filePath, content)
 }
 
 function generateSummaryMarkdownContent(
@@ -47,11 +52,7 @@ function generateSummaryMarkdownContent(
     content += `${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.existingVersion}\``).join(', ')} -> ${repoChanges.repoVersionsToUpdate.map(ver => `\`${ver.newVersion}\``).join(', ')}\n\n`
     content += `### Commits\n\n`
     for (const commit of repoChanges.commits) {
-      const shortMessage = resolveAllPrRefs(
-        commit.commit.message.split('\n')[0],
-        repoChanges
-      )
-      content += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`
+      content += formatCommitLine(commit, repoChanges)
     }
     content += '\n'
   }

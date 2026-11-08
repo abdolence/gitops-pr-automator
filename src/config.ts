@@ -1,6 +1,6 @@
 import * as z from 'zod'
 import fs from 'fs/promises'
-import * as yaml from 'js-yaml'
+import { CORE_SCHEMA, load, mergeTag } from 'js-yaml'
 import { merge } from 'ts-deepmerge'
 
 // Schema for ReleaseFileConfig
@@ -46,7 +46,7 @@ const pullRequestSchema = z.object({
   commitHistory: pullRequestCommitHistorySchema.optional(),
   cleanupExistingAutomatorBranches: z.boolean().optional(),
   alwaysCreateNew: z.boolean().optional(),
-  leaveOpenOnlyNumberOfPRs: z.number().optional(),
+  leaveOpenOnlyNumberOfPRs: z.number().int().positive().optional(),
   includeGitHubOwnerInDescription: z.boolean().optional()
 })
 
@@ -80,15 +80,25 @@ export const configSchema = z.object({
 // Type for your validated config
 export type Config = z.infer<typeof configSchema>
 
+// Merge keys (`<<`) stay enabled because existing config files may rely on
+// them; js-yaml's default schema no longer has them. The other YAML 1.1 types,
+// the timestamp above all, stay off: they would turn an unquoted `2024-01-01`
+// into a Date where the schema expects a string.
+const CONFIG_YAML_SCHEMA = CORE_SCHEMA.withTags(mergeTag)
+
 export async function loadConfigFromYaml(
   configPath: string,
   configOverride?: string
 ): Promise<Config> {
   const fileConfigContent = await fs.readFile(configPath)
-  const fileConfigYaml: any = yaml.load(fileConfigContent.toString())
+  const fileConfigYaml: any = load(fileConfigContent.toString(), {
+    schema: CONFIG_YAML_SCHEMA
+  })
   let config: any = fileConfigYaml
   if (configOverride) {
-    const overrideConfig: any = yaml.load(configOverride)
+    const overrideConfig: any = load(configOverride, {
+      schema: CONFIG_YAML_SCHEMA
+    })
     config = merge(fileConfigYaml, overrideConfig)
   }
   return configSchema.parse(config)

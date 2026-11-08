@@ -1,0 +1,6 @@
+# minimatch 10.2.6 comes in through @actions/glob, which requires ^10.2.5 and
+# has no release that allows 11.x, the line that fixes this denial of service.
+# The glob patterns are taken from the GitOps repository's own configuration,
+# so nobody outside it can supply one. Remove this entry once @actions/glob
+# allows minimatch 11.
+CVE-2026-118764

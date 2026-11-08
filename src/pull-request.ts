@@ -1,7 +1,7 @@
-import { Config, MergeStrategies } from './config'
+import { Config, MergeStrategies } from './config.js'
 import * as github from '@actions/github'
 import { RequestError } from '@octokit/request-error'
-import { FoundChanges } from './changes'
+import { commitAuthorLogin, FoundChanges, GitCommit } from './changes.js'
 
 type Octokit = ReturnType<typeof github.getOctokit>
 
@@ -43,20 +43,11 @@ export async function createPullRequest(
   // Find existing PRs
   const existingPRs = await findExistingPullRequests(config, octokit)
 
-  if (existingPRs.length > 0 && config.pullRequest.leaveOpenOnlyNumberOfPRs) {
-    // Sort PRs by creation date
-    const sortedPRs = [...existingPRs].sort(
-      (a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    )
-
-    // Close the oldest PRs
-    const prsToClose = sortedPRs.slice(
-      config.pullRequest.leaveOpenOnlyNumberOfPRs,
-      sortedPRs.length
-    )
+  const leaveOpen = config.pullRequest.leaveOpenOnlyNumberOfPRs
+  const prsToClose = leaveOpen !== undefined ? existingPRs.slice(leaveOpen) : []
+  if (leaveOpen !== undefined && existingPRs.length > 0) {
     console.info(
-      `Found ${existingPRs.length} existing PRs for ${config.id}. Leaving ${config.pullRequest.leaveOpenOnlyNumberOfPRs} PRs open.`
+      `Found ${existingPRs.length} existing PRs for ${config.id}. Leaving ${leaveOpen} PRs open.`
     )
 
     for (const closePr of prsToClose) {
@@ -83,10 +74,10 @@ export async function createPullRequest(
     })
 
     // Update the PR summary text
-    await octokit.rest.issues.update({
+    await octokit.rest.pulls.update({
       owner: gitOpsRepo.owner,
       repo: gitOpsRepo.repo,
-      issue_number: pullRequest.number,
+      pull_number: pullRequest.number,
       body: prSummaryText
     })
 
@@ -104,11 +95,14 @@ export async function createPullRequest(
     }
   } else {
     if (config.pullRequest.cleanupExistingAutomatorBranches) {
-      await removeAllAutomatorBranches(config, octokit)
+      await removeStaleAutomatorBranches(
+        config,
+        octokit,
+        existingPRs.filter(pr => !prsToClose.includes(pr))
+      )
     }
 
-    // Create a new branch name that includes the config id and the current timestamp to make it unique
-    const newBranchName = `${config.id}-${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`
+    const newBranchName = automatorBranchName(config.id, new Date())
     const newBranchRef = `refs/heads/${newBranchName}`
 
     if (config.pullRequest.alwaysCreateNew) {
@@ -198,16 +192,50 @@ async function getFileContent(
   }
 }
 
+const BRANCH_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/
+
+/**
+ * The name of a branch the configuration creates: its id followed by the
+ * timestamp, which keeps the names unique. {@link isAutomatorBranch} reads
+ * the name back, so the two change together.
+ */
+export function automatorBranchName(configId: string, now: Date): string {
+  return `${configId}-${now.toISOString().replace(/[:.]/g, '-')}`
+}
+
+/**
+ * Whether the branch was named by the configuration, see
+ * {@link automatorBranchName}. Matching the id prefix alone would also take the
+ * branches of a configuration whose id extends this one (`app` and
+ * `app-staging`).
+ */
+export function isAutomatorBranch(
+  configId: string,
+  branchName: string
+): boolean {
+  const prefix = `${configId}-`
+  return (
+    branchName.startsWith(prefix) &&
+    BRANCH_TIMESTAMP.test(branchName.slice(prefix.length))
+  )
+}
+
+/** The open pull requests of the configuration, the newest first. */
 async function findExistingPullRequests(config: Config, octokit: Octokit) {
   const gitOpsRepo = github.context.repo
 
-  const { data: pullRequests } = await octokit.rest.pulls.list({
+  const pullRequests = await octokit.paginate(octokit.rest.pulls.list, {
     owner: gitOpsRepo.owner,
     repo: gitOpsRepo.repo,
     state: 'open'
   })
 
-  return pullRequests.filter(pr => pr.head.ref.startsWith(`${config.id}-`))
+  return pullRequests
+    .filter(pr => isAutomatorBranch(config.id, pr.head.ref))
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
 }
 
 interface FileToUpdate {
@@ -286,32 +314,31 @@ async function commitChanges(
   }
 }
 
-async function removeAllAutomatorBranches(
+/**
+ * Deletes the automator branches that are not the head of a pull request left
+ * open: deleting the head branch of an open pull request closes it.
+ */
+async function removeStaleAutomatorBranches(
   config: Config,
-  octokit: Octokit
+  octokit: Octokit,
+  openPullRequests: { head: { ref: string } }[]
 ): Promise<void> {
   const gitOpsRepo = github.context.repo
 
-  const { data: branches } = await octokit.rest.repos.listBranches({
+  const branches = await octokit.paginate(octokit.rest.repos.listBranches, {
     owner: gitOpsRepo.owner,
     repo: gitOpsRepo.repo
   })
 
-  const automatorBranches = branches.filter(branch =>
-    branch.name.startsWith(`${config.id}/`)
+  const openBranchNames = new Set(openPullRequests.map(pr => pr.head.ref))
+  const staleBranches = branches.filter(
+    branch =>
+      isAutomatorBranch(config.id, branch.name) &&
+      !openBranchNames.has(branch.name)
   )
 
-  for (const branch of automatorBranches) {
-    try {
-      await octokit.rest.git.deleteRef({
-        owner: gitOpsRepo.owner,
-        repo: gitOpsRepo.repo,
-        ref: `heads/${branch.name}`
-      })
-    } catch (error) {
-      console.error(`Failed to delete branch ${branch}`)
-      console.error(error)
-    }
+  for (const branch of staleBranches) {
+    await removeAutomatorBranch(octokit, branch.name)
   }
 }
 
@@ -380,30 +407,58 @@ async function generatePrSummaryText(
     prSummaryText += `| File | Current Version | New Version |\n`
     prSummaryText += `| ------- | ----- | ----- |\n`
     for (const version of repoChanges.repoVersionsToUpdate) {
-      const file = version.file
-      if (version.existingVersionSha && version.newVersionSha) {
-        prSummaryText += `| ${file.gitPath} | [\`${version.existingVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.existingVersionSha}) | [\`${version.newVersion.slice(0, 8)}\`](https://github.com/${repoChanges.sourceRepo.repo}/commits/${version.newVersionSha}) | \n`
-      } else {
-        prSummaryText += `| ${file.gitPath} | ${version.existingVersion} |\n`
-      }
+      const sourceRepo = repoChanges.sourceRepo.repo
+      const current = versionCell(
+        version.existingVersion,
+        version.existingVersionSha,
+        sourceRepo
+      )
+      const next = versionCell(
+        version.newVersion,
+        version.newVersionSha,
+        sourceRepo
+      )
+      prSummaryText += `| ${version.file.gitPath} | ${current} | ${next} |\n`
     }
 
     if (!config.pullRequest.commitHistory?.disable) {
       prSummaryText += `\n\n### :memo: Changes:\n`
       for (const commit of repoChanges.commits) {
-        const shortMessage = resolveAllPrRefs(
-          commit.commit.message.split('\n')[0],
-          repoChanges
-        )
-        prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`
+        prSummaryText += formatCommitLine(commit, repoChanges)
       }
     }
   }
   return prSummaryText
 }
 
+const FULL_COMMIT_SHA = /^([0-9a-f]{40}|[0-9a-f]{64})$/i
+
+function versionCell(
+  version: string,
+  sha: string | undefined,
+  sourceRepo: string
+): string {
+  const label = FULL_COMMIT_SHA.test(version) ? version.slice(0, 8) : version
+  return sha
+    ? `[\`${label}\`](https://github.com/${sourceRepo}/commits/${sha})`
+    : `\`${label}\``
+}
+
+/** A Markdown list item for a commit, ending with a newline. */
+export function formatCommitLine(
+  commit: GitCommit,
+  repoChanges: FoundChanges
+): string {
+  const shortMessage = resolveAllPrRefs(
+    commit.commit.message.split('\n')[0],
+    repoChanges
+  )
+  const login = commitAuthorLogin(commit)
+  return `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage}${login ? ` by @${login}` : ''}\n`
+}
+
 // Resolve all PR references in a string to their full URLs
-export function resolveAllPrRefs(message: string, repoChanges: FoundChanges) {
+function resolveAllPrRefs(message: string, repoChanges: FoundChanges) {
   const prRefs = message.match(/#[0-9]+/g)
   if (!prRefs) return message
   for (const prRef of prRefs) {
