@@ -60,7 +60,7 @@ describe('findVersions', () => {
       }
     ])
 
-    expect(found.map(file => file.version).sort()).toEqual([
+    expect(found.map(file => file.versions[0].version).sort()).toEqual([
       'chart-2.3.4',
       'v1.0.0'
     ])

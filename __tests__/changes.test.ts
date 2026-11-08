@@ -11,19 +11,34 @@ type Octokit = ReturnType<typeof github.getOctokit>
 const HEAD_SHA = 'a'.repeat(40)
 
 function fakeOctokit(
-  tags: { name: string; commit: { sha: string } }[]
+  tags: { name: string; commit: { sha: string } }[],
+  comparisons: string[] = []
 ): Octokit {
   return {
     paginate: async (
-      route: (params: object) => Promise<{ data: unknown[] }>,
-      params: object
-    ) => (await route(params)).data,
+      route: (params: object) => Promise<{ data: unknown }>,
+      params: object,
+      mapResponse?: (response: { data: unknown }) => unknown[]
+    ) => {
+      const response = await route(params)
+      return mapResponse ? mapResponse(response) : response.data
+    },
     rest: {
       git: {
         getRef: async () => ({ data: { object: { sha: HEAD_SHA } } })
       },
       repos: {
-        listTags: async () => ({ data: tags })
+        listTags: async () => ({ data: tags }),
+        compareCommits: async ({
+          base,
+          head
+        }: {
+          base: string
+          head: string
+        }) => {
+          comparisons.push(`${base}..${head}`)
+          return { data: { commits: [] } }
+        }
       }
     }
   } as unknown as Octokit
@@ -89,5 +104,68 @@ describe('findChangesInSourceRepo', () => {
     expect(changes?.repoVersionsToUpdate.map(v => v.newVersion)).toEqual([
       'v1.1.0'
     ])
+  })
+
+  it('updates a file in which an earlier match is stale but the last is current', async () => {
+    await fs.writeFile(
+      path.join(workspace, 'app.yaml'),
+      'a: v1.0.0\nb: v1.1.0\n'
+    )
+    const octokit = fakeOctokit([{ name: 'v1.1.0', commit: { sha: HEAD_SHA } }])
+
+    const changes = await findChangesInSourceRepo(
+      configWith('commit-tags-or-sha'),
+      sourceRepo,
+      octokit,
+      []
+    )
+
+    expect(
+      changes?.repoVersionsToUpdate.map(v => [v.existingVersion, v.newVersion])
+    ).toEqual([['v1.0.0', 'v1.1.0']])
+  })
+
+  it('leaves a file alone when every match is current', async () => {
+    await fs.writeFile(
+      path.join(workspace, 'app.yaml'),
+      'a: v1.1.0\nb: v1.1.0\n'
+    )
+    const octokit = fakeOctokit([{ name: 'v1.1.0', commit: { sha: HEAD_SHA } }])
+
+    const changes = await findChangesInSourceRepo(
+      configWith('commit-tags-or-sha'),
+      sourceRepo,
+      octokit,
+      []
+    )
+
+    expect(changes).toBeUndefined()
+  })
+
+  it('compares each pair of commits once when expressions share a SHA', async () => {
+    const currentSha = 'b'.repeat(40)
+    await fs.writeFile(
+      path.join(workspace, 'app.yaml'),
+      `a: v1.0.0\nb: chart-1.0.0\nsha: ${currentSha}\n`
+    )
+    const comparisons: string[] = []
+    const octokit = fakeOctokit(
+      [{ name: 'v1.1.0', commit: { sha: HEAD_SHA } }],
+      comparisons
+    )
+
+    await findChangesInSourceRepo(
+      {
+        ...configWith('commit-tags-or-sha'),
+        pullRequest: { title: 'release' },
+        regex: ['v\\d+\\.\\d+\\.\\d+', 'chart-\\d+\\.\\d+\\.\\d+'],
+        githubShaRegex: ['(?<=sha: )[a-f0-9]{40}']
+      },
+      sourceRepo,
+      octokit,
+      []
+    )
+
+    expect(comparisons).toEqual([`${currentSha}..${HEAD_SHA}`])
   })
 })

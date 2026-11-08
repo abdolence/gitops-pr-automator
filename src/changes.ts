@@ -48,7 +48,7 @@ export async function findChangesInSourceRepo(
     sourceRepo.releaseFiles || []
   )
   core.info(
-    `Found versions: [${foundVersionFiles.map(ver => `${ver.gitPath}:${ver.version}`).join(', ')}] for '${sourceRepo.repo}'`
+    `Found versions: [${foundVersionFiles.map(ver => `${ver.gitPath}:${ver.versions.map(v => v.version).join('|')}`).join(', ')}] for '${sourceRepo.repo}'`
   )
 
   const [owner, repo] = sourceRepo.repo.split('/')
@@ -102,16 +102,19 @@ export async function findChangesInSourceRepo(
         overrideVersions,
         suitableTagsMap
       )
-      if (
-        newVersionInfo === undefined ||
-        newVersionInfo.newVersion === foundVer.version
-      ) {
+      if (newVersionInfo === undefined) {
+        return []
+      }
+      const outdated = foundVer.versions.find(
+        found => found.version !== newVersionInfo.newVersion
+      )
+      if (outdated === undefined) {
         return []
       }
       return [
         {
-          existingVersion: foundVer.version,
-          existingVersionSha: foundVer.versionSha,
+          existingVersion: outdated.version,
+          existingVersionSha: outdated.versionSha,
           newVersion: newVersionInfo.newVersion,
           newVersionSha: newVersionInfo.newVersionSha,
           file: foundVer
@@ -131,6 +134,7 @@ export async function findChangesInSourceRepo(
     core.info(`New version found for ${sourceRepo.repo}`)
     const relevantCommits: GitCommit[] = []
     if (!config.pullRequest.commitHistory?.disable) {
+      const comparedRanges = new Set<string>()
       for (const ver of repoVersions) {
         if (
           ver.existingVersionSha === undefined ||
@@ -138,6 +142,11 @@ export async function findChangesInSourceRepo(
         ) {
           continue
         }
+        const range = `${ver.existingVersionSha}..${ver.newVersionSha}`
+        if (comparedRanges.has(range)) {
+          continue
+        }
+        comparedRanges.add(range)
         const commits = await octokit.paginate(
           octokit.rest.repos.compareCommits,
           {
