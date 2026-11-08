@@ -43,20 +43,11 @@ export async function createPullRequest(
   // Find existing PRs
   const existingPRs = await findExistingPullRequests(config, octokit)
 
-  if (existingPRs.length > 0 && config.pullRequest.leaveOpenOnlyNumberOfPRs) {
-    // Sort PRs by creation date
-    const sortedPRs = [...existingPRs].sort(
-      (a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    )
-
-    // Close the oldest PRs
-    const prsToClose = sortedPRs.slice(
-      config.pullRequest.leaveOpenOnlyNumberOfPRs,
-      sortedPRs.length
-    )
+  const leaveOpen = config.pullRequest.leaveOpenOnlyNumberOfPRs
+  const prsToClose = leaveOpen ? existingPRs.slice(leaveOpen) : []
+  if (leaveOpen && existingPRs.length > 0) {
     console.info(
-      `Found ${existingPRs.length} existing PRs for ${config.id}. Leaving ${config.pullRequest.leaveOpenOnlyNumberOfPRs} PRs open.`
+      `Found ${existingPRs.length} existing PRs for ${config.id}. Leaving ${leaveOpen} PRs open.`
     )
 
     for (const closePr of prsToClose) {
@@ -104,7 +95,11 @@ export async function createPullRequest(
     }
   } else {
     if (config.pullRequest.cleanupExistingAutomatorBranches) {
-      await removeAllAutomatorBranches(config, octokit)
+      await removeStaleAutomatorBranches(
+        config,
+        octokit,
+        existingPRs.filter(pr => !prsToClose.includes(pr))
+      )
     }
 
     // Create a new branch name that includes the config id and the current timestamp to make it unique
@@ -198,16 +193,22 @@ async function getFileContent(
   }
 }
 
+/** The open pull requests of the configuration, the newest first. */
 async function findExistingPullRequests(config: Config, octokit: Octokit) {
   const gitOpsRepo = github.context.repo
 
-  const { data: pullRequests } = await octokit.rest.pulls.list({
+  const pullRequests = await octokit.paginate(octokit.rest.pulls.list, {
     owner: gitOpsRepo.owner,
     repo: gitOpsRepo.repo,
     state: 'open'
   })
 
-  return pullRequests.filter(pr => pr.head.ref.startsWith(`${config.id}-`))
+  return pullRequests
+    .filter(pr => pr.head.ref.startsWith(`${config.id}-`))
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
 }
 
 interface FileToUpdate {
@@ -286,32 +287,31 @@ async function commitChanges(
   }
 }
 
-async function removeAllAutomatorBranches(
+/**
+ * Deletes the automator branches that are not the head of a pull request left
+ * open: deleting the head branch of an open pull request closes it.
+ */
+async function removeStaleAutomatorBranches(
   config: Config,
-  octokit: Octokit
+  octokit: Octokit,
+  openPullRequests: { head: { ref: string } }[]
 ): Promise<void> {
   const gitOpsRepo = github.context.repo
 
-  const { data: branches } = await octokit.rest.repos.listBranches({
+  const branches = await octokit.paginate(octokit.rest.repos.listBranches, {
     owner: gitOpsRepo.owner,
     repo: gitOpsRepo.repo
   })
 
-  const automatorBranches = branches.filter(branch =>
-    branch.name.startsWith(`${config.id}/`)
+  const openBranchNames = new Set(openPullRequests.map(pr => pr.head.ref))
+  const staleBranches = branches.filter(
+    branch =>
+      branch.name.startsWith(`${config.id}-`) &&
+      !openBranchNames.has(branch.name)
   )
 
-  for (const branch of automatorBranches) {
-    try {
-      await octokit.rest.git.deleteRef({
-        owner: gitOpsRepo.owner,
-        repo: gitOpsRepo.repo,
-        ref: `heads/${branch.name}`
-      })
-    } catch (error) {
-      console.error(`Failed to delete branch ${branch}`)
-      console.error(error)
-    }
+  for (const branch of staleBranches) {
+    await removeAutomatorBranch(octokit, branch.name)
   }
 }
 
