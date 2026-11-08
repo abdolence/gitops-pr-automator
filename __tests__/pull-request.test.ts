@@ -1,7 +1,12 @@
 import * as github from '@actions/github'
 
-import { createPullRequest } from '../src/pull-request.js'
+import {
+  automatorBranchName,
+  createPullRequest,
+  isAutomatorBranch
+} from '../src/pull-request.js'
 import { Config } from '../src/config.js'
+import { GitCommit } from '../src/changes.js'
 
 type Octokit = ReturnType<typeof github.getOctokit>
 
@@ -15,7 +20,7 @@ interface Calls {
   closedPrs: number[]
   deletedRefs: string[]
   updatedPr: number[]
-  createdRefs: string[]
+  createdBodies: string[]
 }
 
 function fakeOctokit(
@@ -26,7 +31,7 @@ function fakeOctokit(
     closedPrs: [],
     deletedRefs: [],
     updatedPr: [],
-    createdRefs: []
+    createdBodies: []
   }
   const octokit = {
     paginate: async (
@@ -42,9 +47,7 @@ function fakeOctokit(
       },
       git: {
         getRef: async () => ({ data: { object: { sha: 'f'.repeat(40) } } }),
-        createRef: async ({ ref }: { ref: string }) => {
-          calls.createdRefs.push(ref)
-        },
+        createRef: async () => ({}),
         deleteRef: async ({ ref }: { ref: string }) => {
           calls.deletedRefs.push(ref)
         }
@@ -61,9 +64,10 @@ function fakeOctokit(
         update: async ({ pull_number }: { pull_number: number }) => {
           calls.closedPrs.push(pull_number)
         },
-        create: async () => ({
-          data: { number: 99, id: 99, html_url: '', node_id: 'node' }
-        })
+        create: async ({ body }: { body: string }) => {
+          calls.createdBodies.push(body)
+          return { data: { number: 99, id: 99, html_url: '', node_id: 'node' } }
+        }
       },
       issues: {
         update: async ({ issue_number }: { issue_number: number }) => {
@@ -106,6 +110,11 @@ describe('createPullRequest', () => {
           number: 3,
           created_at: '2024-03-01T00:00:00Z',
           head: { ref: 'automator-2024-03-01T00-00-00-000Z' }
+        },
+        {
+          number: 4,
+          created_at: '2024-04-01T00:00:00Z',
+          head: { ref: 'automator-staging-2024-04-01T00-00-00-000Z' }
         }
       ],
       []
@@ -137,7 +146,8 @@ describe('createPullRequest', () => {
         'master',
         'feature/other',
         'automator-2024-01-01T00-00-00-000Z',
-        'automator-2023-12-01T00-00-00-000Z'
+        'automator-2023-12-01T00-00-00-000Z',
+        'automator-staging-2024-02-01T00-00-00-000Z'
       ]
     )
 
@@ -155,48 +165,41 @@ describe('createPullRequest', () => {
     ])
   })
 
-  describe('with another configuration whose id extends this one', () => {
-    const own = 'automator-2024-01-01T00-00-00-000Z'
-    const foreign = 'automator-staging-2024-02-01T00-00-00-000Z'
+  it('lists a commit whose author has no GitHub account', async () => {
+    const { octokit, calls } = fakeOctokit([], [])
+    const sha = 'd'.repeat(40)
 
-    it('updates and keeps only its own pull requests', async () => {
-      const { octokit, calls } = fakeOctokit(
-        [
-          {
-            number: 1,
-            created_at: '2024-01-01T00:00:00Z',
-            head: { ref: own }
-          },
-          {
-            number: 2,
-            created_at: '2024-02-01T00:00:00Z',
-            head: { ref: foreign }
-          }
-        ],
-        []
-      )
+    await createPullRequest(
+      configWith({}),
+      [
+        {
+          sourceRepo: { repo: 'owner/source' },
+          repoVersionsToUpdate: [],
+          commits: [
+            {
+              sha,
+              html_url: 'https://example.test/commit',
+              commit: { message: 'Anonymous change', author: null },
+              author: null,
+              parents: []
+            } as unknown as GitCommit
+          ]
+        }
+      ],
+      octokit
+    )
 
-      await createPullRequest(
-        configWith({ leaveOpenOnlyNumberOfPRs: 1 }),
-        [],
-        octokit
-      )
+    expect(calls.createdBodies).toHaveLength(1)
+    expect(calls.createdBodies[0]).toContain(sha.slice(0, 8))
+  })
 
-      expect(calls.updatedPr).toEqual([1])
-      expect(calls.closedPrs).toEqual([])
-      expect(calls.deletedRefs).toEqual([])
-    })
+  it('recognises the branch names it writes', () => {
+    const name = automatorBranchName(
+      'automator',
+      new Date('2024-05-28T16:11:02.314Z')
+    )
 
-    it('does not delete the branches of the other configuration', async () => {
-      const { octokit, calls } = fakeOctokit([], ['master', own, foreign])
-
-      await createPullRequest(
-        configWith({ cleanupExistingAutomatorBranches: true }),
-        [],
-        octokit
-      )
-
-      expect(calls.deletedRefs).toEqual([`heads/${own}`])
-    })
+    expect(name).toBe('automator-2024-05-28T16-11-02-314Z')
+    expect(isAutomatorBranch('automator', name)).toBe(true)
   })
 })

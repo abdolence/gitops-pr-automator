@@ -4,34 +4,6 @@ import * as github from '@actions/github'
 import * as core from '@actions/core'
 import { IncomingVersion } from './input-versions.js'
 
-export interface GitCommitParent {
-  sha: string
-  url: string
-  html_url: string
-}
-
-export interface GitCommit {
-  sha: string
-  url: string
-  html_url: string
-  commit: {
-    message: string
-    author: {
-      name: string
-      email: string
-      date: string
-    }
-    url: string
-  }
-  author: {
-    id: number
-    login: string
-    url: string
-  }
-  comments_url: string
-  parents: GitCommitParent[]
-}
-
 // paginate() types the compare response as the bare commits array, but at
 // runtime it passes the body through with the commits under `commits`.
 type CompareResponse = Awaited<
@@ -39,6 +11,17 @@ type CompareResponse = Awaited<
     ReturnType<typeof github.getOctokit>['rest']['repos']['compareCommits']
   >
 >['data']
+
+export type GitCommit = CompareResponse['commits'][number]
+
+/**
+ * The GitHub login of the commit's author, if any. The author is empty when
+ * the commit's email address belongs to no GitHub account.
+ */
+export function commitAuthorLogin(commit: GitCommit): string | undefined {
+  const author = commit.author
+  return author && 'login' in author ? author.login : undefined
+}
 
 export interface RepoVersionToUpdate {
   existingVersion: string
@@ -91,24 +74,18 @@ export async function findChangesInSourceRepo(
       `Getting the current version tag of ${sourceRepo.repo} at ${headVersionSha}`
     )
 
-    // Check for git tags that match the current version SHA
-    const { data: tagsData } = await octokit.rest.git.listMatchingRefs({
-      owner: owner,
-      repo: repo,
-      ref: `tags`
+    const tags = await octokit.paginate(octokit.rest.repos.listTags, {
+      owner,
+      repo,
+      per_page: 100
     })
 
     const tagsMatchRegex = config.versioning.resolveTagsPattern
       ? new RegExp(config.versioning.resolveTagsPattern)
       : /refs\/tags\/v\d+\.\d+\.\d+/
-    const suitableTags = await Promise.all(
-      tagsData
-        .filter(tag => tagsMatchRegex.test(tag.ref))
-        .map(async tag => ({
-          ver: tag.ref.replace('refs/tags/', ''),
-          sha: await resolveTagCommitSha(octokit, owner, repo, tag)
-        }))
-    )
+    const suitableTags = tags
+      .filter(tag => tagsMatchRegex.test(`refs/tags/${tag.name}`))
+      .map(tag => ({ ver: tag.name, sha: tag.commit.sha }))
 
     for (const tag of suitableTags) {
       suitableTagsMap.set(tag.sha, tag.ver)
@@ -181,14 +158,16 @@ export async function findChangesInSourceRepo(
             continue
           }
           if (!relevantCommits.find(c => c.sha === commit.sha)) {
-            relevantCommits.push(commit as GitCommit)
+            relevantCommits.push(commit)
           }
         }
       }
       relevantCommits.sort((a, b) => {
-        if (a.commit.author.date > b.commit.author.date) {
+        const aDate = a.commit.author?.date ?? ''
+        const bDate = b.commit.author?.date ?? ''
+        if (aDate > bDate) {
           return -1
-        } else if (a.commit.author.date < b.commit.author.date) {
+        } else if (aDate < bDate) {
           return 1
         }
         return 0
@@ -200,28 +179,6 @@ export async function findChangesInSourceRepo(
       commits: relevantCommits
     }
   }
-}
-
-/**
- * The commit a tag reference points at. An annotated tag's reference points at
- * a tag object, which has to be followed (tags can be nested) to the commit.
- */
-async function resolveTagCommitSha(
-  octokit: ReturnType<typeof github.getOctokit>,
-  owner: string,
-  repo: string,
-  tag: { object: { sha: string; type: string } }
-): Promise<string> {
-  let target = tag.object
-  while (target.type === 'tag') {
-    const { data: tagObject } = await octokit.rest.git.getTag({
-      owner,
-      repo,
-      tag_sha: target.sha
-    })
-    target = tagObject.object
-  }
-  return target.sha
 }
 
 function getNewVersionFor(

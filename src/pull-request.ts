@@ -1,7 +1,7 @@
 import { Config, MergeStrategies } from './config.js'
 import * as github from '@actions/github'
 import { RequestError } from '@octokit/request-error'
-import { FoundChanges } from './changes.js'
+import { commitAuthorLogin, FoundChanges } from './changes.js'
 
 type Octokit = ReturnType<typeof github.getOctokit>
 
@@ -44,8 +44,8 @@ export async function createPullRequest(
   const existingPRs = await findExistingPullRequests(config, octokit)
 
   const leaveOpen = config.pullRequest.leaveOpenOnlyNumberOfPRs
-  const prsToClose = leaveOpen ? existingPRs.slice(leaveOpen) : []
-  if (leaveOpen && existingPRs.length > 0) {
+  const prsToClose = leaveOpen !== undefined ? existingPRs.slice(leaveOpen) : []
+  if (leaveOpen !== undefined && existingPRs.length > 0) {
     console.info(
       `Found ${existingPRs.length} existing PRs for ${config.id}. Leaving ${leaveOpen} PRs open.`
     )
@@ -102,8 +102,7 @@ export async function createPullRequest(
       )
     }
 
-    // Create a new branch name that includes the config id and the current timestamp to make it unique
-    const newBranchName = `${config.id}-${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`
+    const newBranchName = automatorBranchName(config.id, new Date())
     const newBranchRef = `refs/heads/${newBranchName}`
 
     if (config.pullRequest.alwaysCreateNew) {
@@ -193,18 +192,31 @@ async function getFileContent(
   }
 }
 
+const BRANCH_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/
+
 /**
- * Whether the branch was named by the configuration: its id followed by the
- * timestamp. Matching the id prefix alone would also take the branches of a
- * configuration whose id extends this one (`app` and `app-staging`).
+ * The name of a branch the configuration creates: its id followed by the
+ * timestamp, which keeps the names unique. {@link isAutomatorBranch} reads
+ * the name back, so the two change together.
  */
-function isAutomatorBranch(configId: string, branchName: string): boolean {
+export function automatorBranchName(configId: string, now: Date): string {
+  return `${configId}-${now.toISOString().replace(/[:.]/g, '-')}`
+}
+
+/**
+ * Whether the branch was named by the configuration, see
+ * {@link automatorBranchName}. Matching the id prefix alone would also take the
+ * branches of a configuration whose id extends this one (`app` and
+ * `app-staging`).
+ */
+export function isAutomatorBranch(
+  configId: string,
+  branchName: string
+): boolean {
   const prefix = `${configId}-`
   return (
     branchName.startsWith(prefix) &&
-    /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(
-      branchName.slice(prefix.length)
-    )
+    BRANCH_TIMESTAMP.test(branchName.slice(prefix.length))
   )
 }
 
@@ -410,7 +422,8 @@ async function generatePrSummaryText(
           commit.commit.message.split('\n')[0],
           repoChanges
         )
-        prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`
+        const login = commitAuthorLogin(commit)
+        prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage}${login ? ` by @${login}` : ''}\n`
       }
     }
   }

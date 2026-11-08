@@ -1,5 +1,5 @@
 import { Config } from './config.js'
-import { FoundChanges } from './changes.js'
+import { commitAuthorLogin, FoundChanges } from './changes.js'
 import fs from 'fs/promises'
 import { resolveAllPrRefs } from './pull-request.js'
 import * as core from '@actions/core'
@@ -51,7 +51,8 @@ function generateSummaryMarkdownContent(
         commit.commit.message.split('\n')[0],
         repoChanges
       )
-      content += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`
+      const login = commitAuthorLogin(commit)
+      content += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage}${login ? ` by @${login}` : ''}\n`
     }
     content += '\n'
   }

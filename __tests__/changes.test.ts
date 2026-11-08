@@ -9,20 +9,21 @@ import { Config } from '../src/config.js'
 type Octokit = ReturnType<typeof github.getOctokit>
 
 const HEAD_SHA = 'a'.repeat(40)
-const TAG_OBJECT_SHA = 'b'.repeat(40)
 
 function fakeOctokit(
-  refs: { ref: string; object: { sha: string; type: string } }[],
-  tagTargets: Record<string, { sha: string; type: string }> = {}
+  tags: { name: string; commit: { sha: string } }[]
 ): Octokit {
   return {
+    paginate: async (
+      route: (params: object) => Promise<{ data: unknown[] }>,
+      params: object
+    ) => (await route(params)).data,
     rest: {
       git: {
-        getRef: async () => ({ data: { object: { sha: HEAD_SHA } } }),
-        listMatchingRefs: async () => ({ data: refs }),
-        getTag: async ({ tag_sha }: { tag_sha: string }) => ({
-          data: { object: tagTargets[tag_sha] }
-        })
+        getRef: async () => ({ data: { object: { sha: HEAD_SHA } } })
+      },
+      repos: {
+        listTags: async () => ({ data: tags })
       }
     }
   } as unknown as Octokit
@@ -62,10 +63,7 @@ describe('findChangesInSourceRepo', () => {
 
   it('leaves a file alone with commit-tags-only when no tag points at the head', async () => {
     const octokit = fakeOctokit([
-      {
-        ref: 'refs/tags/v1.0.0',
-        object: { sha: 'c'.repeat(40), type: 'commit' }
-      }
+      { name: 'v1.0.0', commit: { sha: 'c'.repeat(40) } }
     ])
 
     const changes = await findChangesInSourceRepo(
@@ -78,16 +76,8 @@ describe('findChangesInSourceRepo', () => {
     expect(changes).toBeUndefined()
   })
 
-  it('matches an annotated tag to the commit it points at', async () => {
-    const octokit = fakeOctokit(
-      [
-        {
-          ref: 'refs/tags/v1.1.0',
-          object: { sha: TAG_OBJECT_SHA, type: 'tag' }
-        }
-      ],
-      { [TAG_OBJECT_SHA]: { sha: HEAD_SHA, type: 'commit' } }
-    )
+  it('updates to the tag that points at the head commit', async () => {
+    const octokit = fakeOctokit([{ name: 'v1.1.0', commit: { sha: HEAD_SHA } }])
 
     const changes = await findChangesInSourceRepo(
       configWith('commit-tags-or-sha'),
