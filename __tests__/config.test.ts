@@ -40,22 +40,36 @@ sourceRepos:
     ])
   })
 
-  it.each([-1, 1.5])(
-    'rejects leaveOpenOnlyNumberOfPRs of %s',
-    async leaveOpen => {
-      const configPath = path.join(dir, 'config.yaml')
-      await fs.writeFile(
-        configPath,
-        `
+  it('keeps an unquoted date in a string field a string', async () => {
+    const configPath = path.join(dir, 'config.yaml')
+    await fs.writeFile(
+      configPath,
+      `
+id: unquoted-date
+pullRequest:
+  title: 2024-01-01
+sourceRepos: []
+`
+    )
+
+    const config = await loadConfigFromYaml(configPath)
+
+    expect(config.pullRequest.title).toBe('2024-01-01')
+  })
+
+  it('rejects leaveOpenOnlyNumberOfPRs of 0', async () => {
+    const configPath = path.join(dir, 'config.yaml')
+    await fs.writeFile(
+      configPath,
+      `
 id: leave-open
 pullRequest:
   title: release
-  leaveOpenOnlyNumberOfPRs: ${leaveOpen}
+  leaveOpenOnlyNumberOfPRs: 0
 sourceRepos: []
 `
-      )
+    )
 
-      await expect(loadConfigFromYaml(configPath)).rejects.toThrow()
-    }
-  )
+    await expect(loadConfigFromYaml(configPath)).rejects.toThrow()
+  })
 })

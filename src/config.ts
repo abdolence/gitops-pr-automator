@@ -1,15 +1,6 @@
 import * as z from 'zod'
 import fs from 'fs/promises'
-import {
-  CORE_SCHEMA,
-  binaryTag,
-  load,
-  mergeTag,
-  omapTag,
-  pairsTag,
-  setTag,
-  timestampTag
-} from 'js-yaml'
+import { CORE_SCHEMA, load, mergeTag } from 'js-yaml'
 import { merge } from 'ts-deepmerge'
 
 // Schema for ReleaseFileConfig
@@ -55,7 +46,7 @@ const pullRequestSchema = z.object({
   commitHistory: pullRequestCommitHistorySchema.optional(),
   cleanupExistingAutomatorBranches: z.boolean().optional(),
   alwaysCreateNew: z.boolean().optional(),
-  leaveOpenOnlyNumberOfPRs: z.number().int().nonnegative().optional(),
+  leaveOpenOnlyNumberOfPRs: z.number().int().positive().optional(),
   includeGitHubOwnerInDescription: z.boolean().optional()
 })
 
@@ -89,16 +80,11 @@ export const configSchema = z.object({
 // Type for your validated config
 export type Config = z.infer<typeof configSchema>
 
-// Merge keys (`<<`) and the YAML 1.1 types stay enabled because existing
-// config files may rely on them; js-yaml's default schema no longer has them.
-const CONFIG_YAML_SCHEMA = CORE_SCHEMA.withTags(
-  mergeTag,
-  timestampTag,
-  binaryTag,
-  omapTag,
-  pairsTag,
-  setTag
-)
+// Merge keys (`<<`) stay enabled because existing config files may rely on
+// them; js-yaml's default schema no longer has them. The other YAML 1.1 types,
+// the timestamp above all, stay off: they would turn an unquoted `2024-01-01`
+// into a Date where the schema expects a string.
+const CONFIG_YAML_SCHEMA = CORE_SCHEMA.withTags(mergeTag)
 
 export async function loadConfigFromYaml(
   configPath: string,
