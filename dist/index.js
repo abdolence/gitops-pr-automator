@@ -50721,7 +50721,7 @@ const pullRequestSchema = object({
     commitHistory: pullRequestCommitHistorySchema.optional(),
     cleanupExistingAutomatorBranches: schemas_boolean().optional(),
     alwaysCreateNew: schemas_boolean().optional(),
-    leaveOpenOnlyNumberOfPRs: schemas_number().int().nonnegative().optional(),
+    leaveOpenOnlyNumberOfPRs: schemas_number().int().positive().optional(),
     includeGitHubOwnerInDescription: schemas_boolean().optional()
 });
 const versioningSchemeSchema = union([
@@ -50747,9 +50747,11 @@ const configSchema = object({
     githubShaRegex: array(schemas_string()).optional(),
     artifacts: artifactConfigSchema.optional()
 });
-// Merge keys (`<<`) and the YAML 1.1 types stay enabled because existing
-// config files may rely on them; js-yaml's default schema no longer has them.
-const CONFIG_YAML_SCHEMA = CORE_SCHEMA.withTags(mergeTag, timestampTag, binaryTag, omapTag, pairsTag, setTag);
+// Merge keys (`<<`) stay enabled because existing config files may rely on
+// them; js-yaml's default schema no longer has them. The other YAML 1.1 types,
+// the timestamp above all, stay off: they would turn an unquoted `2024-01-01`
+// into a Date where the schema expects a string.
+const CONFIG_YAML_SCHEMA = CORE_SCHEMA.withTags(mergeTag);
 async function loadConfigFromYaml(configPath, configOverride) {
     const fileConfigContent = await promises_default().readFile(configPath);
     const fileConfigYaml = load(fileConfigContent.toString(), {
@@ -54354,6 +54356,14 @@ async function findVersions(config, releaseFiles) {
 ;// CONCATENATED MODULE: ./src/changes.ts
 
 
+/**
+ * The GitHub login of the commit's author, if any. The author is empty when
+ * the commit's email address belongs to no GitHub account.
+ */
+function commitAuthorLogin(commit) {
+    const author = commit.author;
+    return author && 'login' in author ? author.login : undefined;
+}
 async function findChangesInSourceRepo(config, sourceRepo, octokit, overrideVersions) {
     const foundVersionFiles = await findVersions(config, sourceRepo.releaseFiles || []);
     info(`Found versions: [${foundVersionFiles.map(ver => `${ver.gitPath}:${ver.version}`).join(', ')}] for '${sourceRepo.repo}'`);
@@ -54370,21 +54380,17 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit, overrideVers
     if (config.versioning?.scheme === 'commit-tags-or-sha' ||
         config.versioning?.scheme === 'commit-tags-only') {
         console.debug(`Getting the current version tag of ${sourceRepo.repo} at ${headVersionSha}`);
-        // Check for git tags that match the current version SHA
-        const { data: tagsData } = await octokit.rest.git.listMatchingRefs({
-            owner: owner,
-            repo: repo,
-            ref: `tags`
+        const tags = await octokit.paginate(octokit.rest.repos.listTags, {
+            owner,
+            repo,
+            per_page: 100
         });
         const tagsMatchRegex = config.versioning.resolveTagsPattern
             ? new RegExp(config.versioning.resolveTagsPattern)
             : /refs\/tags\/v\d+\.\d+\.\d+/;
-        const suitableTags = await Promise.all(tagsData
-            .filter(tag => tagsMatchRegex.test(tag.ref))
-            .map(async (tag) => ({
-            ver: tag.ref.replace('refs/tags/', ''),
-            sha: await resolveTagCommitSha(octokit, owner, repo, tag)
-        })));
+        const suitableTags = tags
+            .filter(tag => tagsMatchRegex.test(`refs/tags/${tag.name}`))
+            .map(tag => ({ ver: tag.name, sha: tag.commit.sha }));
         for (const tag of suitableTags) {
             suitableTagsMap.set(tag.sha, tag.ver);
         }
@@ -54437,10 +54443,12 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit, overrideVers
                 }
             }
             relevantCommits.sort((a, b) => {
-                if (a.commit.author.date > b.commit.author.date) {
+                const aDate = a.commit.author?.date ?? '';
+                const bDate = b.commit.author?.date ?? '';
+                if (aDate > bDate) {
                     return -1;
                 }
-                else if (a.commit.author.date < b.commit.author.date) {
+                else if (aDate < bDate) {
                     return 1;
                 }
                 return 0;
@@ -54452,22 +54460,6 @@ async function findChangesInSourceRepo(config, sourceRepo, octokit, overrideVers
             commits: relevantCommits
         };
     }
-}
-/**
- * The commit a tag reference points at. An annotated tag's reference points at
- * a tag object, which has to be followed (tags can be nested) to the commit.
- */
-async function resolveTagCommitSha(octokit, owner, repo, tag) {
-    let target = tag.object;
-    while (target.type === 'tag') {
-        const { data: tagObject } = await octokit.rest.git.getTag({
-            owner,
-            repo,
-            tag_sha: target.sha
-        });
-        target = tagObject.object;
-    }
-    return target.sha;
 }
 function getNewVersionFor(config, sourceRepo, foundVer, headVersionSha, overrideVersions, suitableTagsMap) {
     const override = overrideVersions.find(ov => ov.repo === sourceRepo.repo &&
@@ -54499,6 +54491,7 @@ function getNewVersionFor(config, sourceRepo, foundVer, headVersionSha, override
 ;// CONCATENATED MODULE: ./src/pull-request.ts
 
 
+
 async function createPullRequest(config, allRepoChanges, octokit) {
     const gitOpsRepo = github_context.repo;
     const { data: repoData } = await octokit.rest.repos.get({
@@ -54518,8 +54511,8 @@ async function createPullRequest(config, allRepoChanges, octokit) {
     // Find existing PRs
     const existingPRs = await findExistingPullRequests(config, octokit);
     const leaveOpen = config.pullRequest.leaveOpenOnlyNumberOfPRs;
-    const prsToClose = leaveOpen ? existingPRs.slice(leaveOpen) : [];
-    if (leaveOpen && existingPRs.length > 0) {
+    const prsToClose = leaveOpen !== undefined ? existingPRs.slice(leaveOpen) : [];
+    if (leaveOpen !== undefined && existingPRs.length > 0) {
         console.info(`Found ${existingPRs.length} existing PRs for ${config.id}. Leaving ${leaveOpen} PRs open.`);
         for (const closePr of prsToClose) {
             await octokit.rest.pulls.update({
@@ -54559,8 +54552,7 @@ async function createPullRequest(config, allRepoChanges, octokit) {
         if (config.pullRequest.cleanupExistingAutomatorBranches) {
             await removeStaleAutomatorBranches(config, octokit, existingPRs.filter(pr => !prsToClose.includes(pr)));
         }
-        // Create a new branch name that includes the config id and the current timestamp to make it unique
-        const newBranchName = `${config.id}-${new Date().toISOString().replace(/[:_\s\\.]/g, '-')}`;
+        const newBranchName = automatorBranchName(config.id, new Date());
         const newBranchRef = `refs/heads/${newBranchName}`;
         if (config.pullRequest.alwaysCreateNew) {
             console.info(`Creating a new PR '${newBranchRef}' because 'alwaysCreateNew' is set to true.`);
@@ -54619,15 +54611,25 @@ async function getFileContent(octokit, path, branchName) {
         throw error;
     }
 }
+const BRANCH_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/;
 /**
- * Whether the branch was named by the configuration: its id followed by the
- * timestamp. Matching the id prefix alone would also take the branches of a
- * configuration whose id extends this one (`app` and `app-staging`).
+ * The name of a branch the configuration creates: its id followed by the
+ * timestamp, which keeps the names unique. {@link isAutomatorBranch} reads
+ * the name back, so the two change together.
+ */
+function automatorBranchName(configId, now) {
+    return `${configId}-${now.toISOString().replace(/[:.]/g, '-')}`;
+}
+/**
+ * Whether the branch was named by the configuration, see
+ * {@link automatorBranchName}. Matching the id prefix alone would also take the
+ * branches of a configuration whose id extends this one (`app` and
+ * `app-staging`).
  */
 function isAutomatorBranch(configId, branchName) {
     const prefix = `${configId}-`;
     return (branchName.startsWith(prefix) &&
-        /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(branchName.slice(prefix.length)));
+        BRANCH_TIMESTAMP.test(branchName.slice(prefix.length)));
 }
 /** The open pull requests of the configuration, the newest first. */
 async function findExistingPullRequests(config, octokit) {
@@ -54761,7 +54763,8 @@ async function generatePrSummaryText(config, allRepoChanges) {
             prSummaryText += `\n\n### :memo: Changes:\n`;
             for (const commit of repoChanges.commits) {
                 const shortMessage = resolveAllPrRefs(commit.commit.message.split('\n')[0], repoChanges);
-                prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`;
+                const login = commitAuthorLogin(commit);
+                prSummaryText += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage}${login ? ` by @${login}` : ''}\n`;
             }
         }
     }
@@ -54780,6 +54783,7 @@ function resolveAllPrRefs(message, repoChanges) {
 }
 
 ;// CONCATENATED MODULE: ./src/summary-artifacts.ts
+
 
 
 
@@ -54817,7 +54821,8 @@ function generateSummaryMarkdownContent(config, allRepoChanges) {
         content += `### Commits\n\n`;
         for (const commit of repoChanges.commits) {
             const shortMessage = resolveAllPrRefs(commit.commit.message.split('\n')[0], repoChanges);
-            content += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage} by @${commit.author.login}\n`;
+            const login = commitAuthorLogin(commit);
+            content += `- [\`${commit.sha.slice(0, 8)}\`](${commit.html_url}) ${shortMessage}${login ? ` by @${login}` : ''}\n`;
         }
         content += '\n';
     }
