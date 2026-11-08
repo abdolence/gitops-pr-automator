@@ -259,14 +259,13 @@ A configuration file is a YAML document with these top-level options:
 - `alwaysCreateNew`: when `true`, every run that finds changes creates a new
   branch and pull request. Otherwise the action updates the open pull request of
   the configuration if there is one;
-- `leaveOpenOnlyNumberOfPRs`: a number. When open pull requests of the
-  configuration already exist, they are sorted by creation date, oldest first,
-  and only the first of that number stay open. The others are closed and their
-  branches deleted.;
+- `leaveOpenOnlyNumberOfPRs`: a number. Open pull requests of the configuration
+  are sorted by creation date, newest first, and only that number stay open. The
+  older ones are closed and their branches deleted. A pull request created in
+  the same run is not counted;
 - `cleanupExistingAutomatorBranches`: when `true`, before a new pull request is
   created, the branches of the GitOps repository with names starting with
-  `<id>/` are deleted. Branches created by the action are named
-  `<id>-<timestamp>`, so they do not match.
+  `<id>-` are deleted, except the branches of open pull requests.
 
 The pull requests of a configuration are the open pull requests with a branch
 name that starts with `<id>-`. When there is one and `alwaysCreateNew` is not
@@ -289,6 +288,8 @@ Each item of `sourceRepos` has:
 Each item of `releaseFiles` has:
 
 - `path` (required): a glob pattern for the files, relative to the workspace;
+- `ignore`: a glob pattern, relative to the workspace, for the files matched by
+  `path` that are left out;
 - `regex`: regular expressions to match and replace the version in these files.
   Replaces the top-level `regex` for them;
 - `githubShaRegex`: regular expressions to match the commit SHA in these files.
@@ -409,15 +410,15 @@ values:
   when there is no `versioning` block;
 - `commit-tags-or-sha` - the tag of the source repository that points at the
   head commit, and if there is none, the full commit SHA;
-- `commit-tags-only` - currently behaves the same as `commit-tags-or-sha`: the
-  commit SHA is used when no tag matches.
+- `commit-tags-only` - the tag of the source repository that points at the head
+  commit. When there is none, the release files of that source repository are
+  not changed.
 
 `resolveTagsPattern` is a regular expression tested against the full tag
 reference (`refs/tags/<tag>`) and is not anchored. Only the tags that match it
 are considered. When it is not set, tags containing `v<major>.<minor>.<patch>`
 (for example `v1.5.0`) are considered. A tag is matched to the head commit by
-the object its reference points at, so annotated tags (whose reference points at
-the tag object, not at the commit) are not matched; use lightweight tags.
+the commit it points at, for both lightweight and annotated tags.
 
 When a tag is used, the `regex` of the release files has to match a tag in the
 file (for example `v1.5.0`), not a commit SHA. Set `githubShaRegex` as well to
