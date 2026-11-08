@@ -1,0 +1,3 @@
+# The ncc bundle of src/ and its dependencies. src/ is scanned on its own; the
+# bundle adds only vendored code, whose doc examples look like credentials.
+/dist/
