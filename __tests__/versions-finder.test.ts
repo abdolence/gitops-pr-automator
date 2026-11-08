@@ -41,4 +41,28 @@ describe('findVersions', () => {
 
     expect(found.map(file => file.gitPath)).toEqual(['app.yaml'])
   })
+
+  it('reports the matches of every expression listed for a file', async () => {
+    await fs.writeFile(
+      path.join(workspace, 'app.yaml'),
+      'image: v1.0.0\nchart: chart-2.3.4\n'
+    )
+    const config: Config = {
+      id: 'test',
+      pullRequest: { title: 'release' },
+      sourceRepos: []
+    }
+
+    const found = await findVersions(config, [
+      {
+        path: 'app.yaml',
+        regex: ['v\\d+\\.\\d+\\.\\d+', 'chart-\\d+\\.\\d+\\.\\d+']
+      }
+    ])
+
+    expect(found.map(file => file.version).sort()).toEqual([
+      'chart-2.3.4',
+      'v1.0.0'
+    ])
+  })
 })

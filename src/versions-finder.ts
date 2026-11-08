@@ -17,6 +17,8 @@ export async function findVersions(
   config: Config,
   releaseFiles: ReleaseFileConfig[]
 ): Promise<FoundVersionedFile[]> {
+  // One entry per file and expression: each expression replaces its own
+  // matches, so an entry per file would drop all but one of them.
   const results: Map<string, FoundVersionedFile> = new Map()
   for (const fileConfig of releaseFiles) {
     const regexes = fileConfig.regex || config.regex || []
@@ -33,10 +35,10 @@ export async function findVersions(
     const fileResults = await globber.glob()
 
     for (const filePath of fileResults) {
+      console.debug('Checking file: ', filePath)
+      const fileContent = (await fs.readFile(filePath)).toString()
       for (const fileRegexStr of regexes) {
         const fileRegex = new RegExp(fileRegexStr, 'gm')
-        console.debug('Checking file: ', filePath)
-        const fileContent = (await fs.readFile(filePath)).toString()
         const matchedArray = fileContent.matchAll(fileRegex)
         for (const matched of matchedArray) {
           if (matched && matched[0] && matched[0].trim().length > 0) {
@@ -78,7 +80,7 @@ export async function findVersions(
               version,
               versionSha
             }
-            results.set(filePath, versionedFile)
+            results.set(`${filePath}\0${fileRegexStr}`, versionedFile)
           }
         }
       }
