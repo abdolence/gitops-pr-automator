@@ -4,47 +4,80 @@
  * These should be run as if the action was called from a workflow.
  * Specifically, the inputs listed in `action.yml` should be set as environment
  * variables following the pattern `INPUT_<INPUT_NAME>`.
+ *
+ * The end-to-end test talks to GitHub and runs only when `GITOPS_E2E` is set.
+ * It needs `GITHUB_TOKEN` with write access to this repository and
+ * `GITHUB_REPOSITORY`; CI sets all three on events that have such a token,
+ * which pull requests from forks and from Dependabot do not.
  */
 
-import * as core from '@actions/core'
-import * as main from '../src/main'
+import { jest } from '@jest/globals'
+import fs from 'fs/promises'
+import os from 'os'
+import path from 'path'
 
-// Mock the action's main function
-const runMock = jest.spyOn(main, 'run')
+import { run } from '../src/main.js'
 
-// Mock the GitHub Actions core library
-let getInputMock: jest.SpiedFunction<typeof core.getInput>
+const describeEndToEnd = process.env['GITOPS_E2E'] ? describe : describe.skip
 
 describe('action', () => {
+  let stdout: string[]
+
   beforeEach(() => {
-    jest.clearAllMocks()
-
-    getInputMock = jest.spyOn(core, 'getInput').mockImplementation()
-  })
-
-  it('detects changes in source repos', async () => {
-    // Set the action's inputs as return values from core.getInput()
-    getInputMock.mockImplementation(name => {
-      switch (name) {
-        case 'github-token':
-          return (
-            process.env.GITHUB_TOKEN ||
-            process.env.TEST_GITHUB_TOKEN ||
-            'mock-github-token'
-          )
-        case 'config-override':
-          return `
+    process.exitCode = undefined
+    stdout = []
+    jest.spyOn(process.stdout, 'write').mockImplementation(chunk => {
+      stdout.push(String(chunk))
+      return true
+    })
+    process.env['INPUT_GITHUB-TOKEN'] =
+      process.env.GITHUB_TOKEN ?? process.env.TEST_GITHUB_TOKEN ?? ''
+    process.env['INPUT_CONFIG-OVERRIDE'] = `
           pullRequest:
             cleanupExistingAutomatorBranches: true
           `
-        case 'versions':
-          return `abdolence/gitops-pr-automator:test-specific-path=v1.3.0,ef1250f9f2ab89ff8f9ce97e05c7ec8a1d29f32e`
-        default:
-          return ''
-      }
-    })
+    process.env['INPUT_VERSIONS'] =
+      `abdolence/gitops-pr-automator:test-specific-path=v1.3.0,ef1250f9f2ab89ff8f9ce97e05c7ec8a1d29f32e`
+  })
 
-    await main.run()
-    expect(runMock).toHaveReturned()
-  }, 1000000)
+  afterEach(() => {
+    jest.restoreAllMocks()
+    delete process.env['INPUT_CONFIG-PATH']
+    process.exitCode = undefined
+  })
+
+  describeEndToEnd('against GitHub', () => {
+    it('detects changes in source repos', async () => {
+      await run()
+
+      expect(stdout.filter(line => line.startsWith('::error::'))).toEqual([])
+    }, 1000000)
+  })
+
+  it('reports the failing path of an invalid config', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'gitops-main-'))
+    try {
+      const configPath = path.join(dir, 'config.yaml')
+      await fs.writeFile(
+        configPath,
+        `
+id: invalid-config
+pullRequest:
+  title: release
+sourceRepos: not-a-list
+`
+      )
+      process.env['INPUT_CONFIG-PATH'] = configPath
+      process.env['INPUT_CONFIG-OVERRIDE'] = ''
+
+      await run()
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true })
+    }
+
+    const errors = stdout.filter(line => line.startsWith('::error::'))
+    expect(process.exitCode).toBe(1)
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('sourceRepos')
+  })
 })

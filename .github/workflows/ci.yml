@@ -9,22 +9,29 @@ on:
       - master
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
+# The end-to-end test and the action's own test open a pull request in this
+# repository, which needs a write token. GitHub gives pull requests from forks
+# and from Dependabot a read-only one.
 jobs:
   test-typescript:
     name: TypeScript Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         id: setup-node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: npm
@@ -46,22 +53,37 @@ jobs:
         run: npm run ci-test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITOPS_E2E:
+            ${{ (github.event_name != 'pull_request' ||
+            (github.event.pull_request.head.repo.full_name == github.repository
+            && github.actor != 'dependabot[bot]')) && 'true' || '' }}
 
   test-action:
     name: GitHub Actions Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    if:
+      ${{ github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]') }}
 
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Test Local Action
         id: test-action
-        uses: ./
+        uses: $/
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Print Output
         id: output
-        run: echo "${{ steps.test-action.outputs.detected-changes }}"
+        run: echo "${DETECTED_CHANGES}"
+        env:
+          DETECTED_CHANGES: ${{ steps.test-action.outputs.detected-changes }}

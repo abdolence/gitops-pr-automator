@@ -2,12 +2,12 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as z from 'zod'
 
-import { loadConfigFromYaml } from './config'
-import { findChangesInSourceRepo, FoundChanges } from './changes'
-import { createPullRequest } from './pull-request'
+import { loadConfigFromYaml } from './config.js'
+import { findChangesInSourceRepo, FoundChanges } from './changes.js'
+import { createPullRequest } from './pull-request.js'
 import { RequestError } from '@octokit/request-error'
-import { generateSummaryArtifacts } from './summary-artifacts'
-import { parseInputVersions } from './input-versions'
+import { generateSummaryArtifacts } from './summary-artifacts.js'
+import { parseInputVersions } from './input-versions.js'
 
 /**
  * The main function for the action.
@@ -98,8 +98,7 @@ export async function run(): Promise<void> {
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof z.ZodError) {
-      console.error(error.errors) // Detailed validation errors
-      core.setFailed(error.errors.toString())
+      core.setFailed(z.prettifyError(error))
     } else if (error instanceof RequestError) {
       console.error(error)
       core.setFailed(error.message)

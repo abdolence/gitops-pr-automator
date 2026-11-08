@@ -3,15 +3,16 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "NodeNext",
-    "rootDir": "./src",
     "moduleResolution": "NodeNext",
-    "baseUrl": "./",
+    "rootDir": "./src",
+    "types": ["node", "jest"],
     "sourceMap": true,
     "outDir": "./dist",
     "noImplicitAny": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "isolatedModules": true,
     "skipLibCheck": true,
     "newLine": "lf"
   },
