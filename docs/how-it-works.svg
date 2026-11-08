@@ -1,0 +1,258 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img"
+  aria-label="A release in an app repository triggers the GitOps repository workflow; the action finds the new version, updates the release files and opens a pull request, which is merged and deployed by the reconciler.">
+<title>How gitops-pr-automator works</title>
+<defs>
+  <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity=".35"/>
+  </filter>
+</defs>
+<style><![CDATA[
+text{white-space:pre}
+@keyframes rel{0%{opacity:0}2.308%{opacity:0}5.000%{opacity:1}100%{opacity:1}}
+.rel{animation:rel 13.0s linear infinite both}
+@keyframes rel-s{0%{transform:scale(.6)}2.308%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}5.000%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.rel-s{animation:rel-s 13.0s linear infinite both}
+@keyframes ring{0%{transform:scale(1)}3.846%{transform:scale(1)}10.000%{transform:scale(3.2)}100%{transform:scale(3.2)}}
+.ring{animation:ring 13.0s linear infinite both}
+@keyframes ring-o{0%{opacity:0}3.769%{opacity:0}3.846%{opacity:0.9}10.000%{opacity:0}100%{opacity:0}}
+.ring-o{animation:ring-o 13.0s linear infinite both}
+@keyframes tag{0%{opacity:0}6.154%{opacity:0}8.462%{opacity:1}100%{opacity:1}}
+.tag{animation:tag 13.0s linear infinite both}
+@keyframes tag-s{0%{transform:scale(.6)}6.154%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}8.462%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.tag-s{animation:tag-s 13.0s linear infinite both}
+@keyframes dispatch{0%{opacity:0}10.769%{opacity:0}13.077%{opacity:1}100%{opacity:1}}
+.dispatch{animation:dispatch 13.0s linear infinite both}
+@keyframes a1-line{0%{stroke-dashoffset:60}14.615%{stroke-dashoffset:60}20.000%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+.a1-line{animation:a1-line 13.0s linear infinite both}
+@keyframes a1-dot{0%{transform:translate(0,0)}14.615%{transform:translate(0,0)}20.000%{transform:translate(60px,0)}100%{transform:translate(60px,0)}}
+.a1-dot{animation:a1-dot 13.0s linear infinite both}
+@keyframes a1-dot-o{0%{opacity:0}14.231%{opacity:0}15.000%{opacity:1}19.615%{opacity:1}20.385%{opacity:0}100%{opacity:0}}
+.a1-dot-o{animation:a1-dot-o 13.0s linear infinite both}
+@keyframes a1-head{0%{opacity:0}19.231%{opacity:0}20.385%{opacity:1}100%{opacity:1}}
+.a1-head{animation:a1-head 13.0s linear infinite both}
+@keyframes a2-line{0%{stroke-dashoffset:60}46.154%{stroke-dashoffset:60}51.538%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+.a2-line{animation:a2-line 13.0s linear infinite both}
+@keyframes a2-dot{0%{transform:translate(0,0)}46.154%{transform:translate(0,0)}51.538%{transform:translate(60px,0)}100%{transform:translate(60px,0)}}
+.a2-dot{animation:a2-dot 13.0s linear infinite both}
+@keyframes a2-dot-o{0%{opacity:0}45.769%{opacity:0}46.538%{opacity:1}51.154%{opacity:1}51.923%{opacity:0}100%{opacity:0}}
+.a2-dot-o{animation:a2-dot-o 13.0s linear infinite both}
+@keyframes a2-head{0%{opacity:0}50.769%{opacity:0}51.923%{opacity:1}100%{opacity:1}}
+.a2-head{animation:a2-head 13.0s linear infinite both}
+@keyframes a3-line{0%{stroke-dashoffset:60}74.615%{stroke-dashoffset:60}80.000%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+.a3-line{animation:a3-line 13.0s linear infinite both}
+@keyframes a3-dot{0%{transform:translate(0,0)}74.615%{transform:translate(0,0)}80.000%{transform:translate(60px,0)}100%{transform:translate(60px,0)}}
+.a3-dot{animation:a3-dot 13.0s linear infinite both}
+@keyframes a3-dot-o{0%{opacity:0}74.231%{opacity:0}75.000%{opacity:1}79.615%{opacity:1}80.385%{opacity:0}100%{opacity:0}}
+.a3-dot-o{animation:a3-dot-o 13.0s linear infinite both}
+@keyframes a3-head{0%{opacity:0}79.231%{opacity:0}80.385%{opacity:1}100%{opacity:1}}
+.a3-head{animation:a3-head 13.0s linear infinite both}
+@keyframes c1{0%{stroke:#30363d}2.308%{stroke:#30363d}3.846%{stroke:#1f6feb}14.615%{stroke:#1f6feb}16.923%{stroke:#30363d}100%{stroke:#30363d}}
+.c1{animation:c1 13.0s linear infinite both}
+@keyframes c1-cap{0%{fill:#30363d}2.308%{fill:#30363d}3.846%{fill:#1f6feb}100%{fill:#1f6feb}}
+.c1-cap{animation:c1-cap 13.0s linear infinite both}
+@keyframes c1-capt{0%{opacity:0.55}2.308%{opacity:0.55}3.846%{opacity:1}100%{opacity:1}}
+.c1-capt{animation:c1-capt 13.0s linear infinite both}
+@keyframes c2{0%{stroke:#30363d}20.000%{stroke:#30363d}21.538%{stroke:#1f6feb}46.154%{stroke:#1f6feb}48.462%{stroke:#30363d}100%{stroke:#30363d}}
+.c2{animation:c2 13.0s linear infinite both}
+@keyframes c2-cap{0%{fill:#30363d}20.000%{fill:#30363d}21.538%{fill:#1f6feb}100%{fill:#1f6feb}}
+.c2-cap{animation:c2-cap 13.0s linear infinite both}
+@keyframes c2-capt{0%{opacity:0.55}20.000%{opacity:0.55}21.538%{opacity:1}100%{opacity:1}}
+.c2-capt{animation:c2-capt 13.0s linear infinite both}
+@keyframes c3{0%{stroke:#30363d}51.538%{stroke:#30363d}53.077%{stroke:#1f6feb}74.615%{stroke:#1f6feb}76.923%{stroke:#30363d}100%{stroke:#30363d}}
+.c3{animation:c3 13.0s linear infinite both}
+@keyframes c3-cap{0%{fill:#30363d}51.538%{fill:#30363d}53.077%{fill:#1f6feb}100%{fill:#1f6feb}}
+.c3-cap{animation:c3-cap 13.0s linear infinite both}
+@keyframes c3-capt{0%{opacity:0.55}51.538%{opacity:0.55}53.077%{opacity:1}100%{opacity:1}}
+.c3-capt{animation:c3-capt 13.0s linear infinite both}
+@keyframes c4{0%{stroke:#30363d}80.000%{stroke:#30363d}81.538%{stroke:#1f6feb}100.000%{stroke:#1f6feb}102.308%{stroke:#30363d}}
+.c4{animation:c4 13.0s linear infinite both}
+@keyframes c4-cap{0%{fill:#30363d}80.000%{fill:#30363d}81.538%{fill:#1f6feb}100%{fill:#1f6feb}}
+.c4-cap{animation:c4-cap 13.0s linear infinite both}
+@keyframes c4-capt{0%{opacity:0.55}80.000%{opacity:0.55}81.538%{opacity:1}100%{opacity:1}}
+.c4-capt{animation:c4-capt 13.0s linear infinite both}
+@keyframes chip{0%{fill:#484f58}20.000%{fill:#484f58}20.769%{fill:#d29922}44.615%{fill:#d29922}46.154%{fill:#3fb950}100%{fill:#3fb950}}
+.chip{animation:chip 13.0s linear infinite both}
+@keyframes chip-pulse{0%{opacity:1}20.000%{opacity:1}22.692%{opacity:0.3}25.385%{opacity:1}28.077%{opacity:0.3}30.769%{opacity:1}33.462%{opacity:0.3}36.154%{opacity:1}38.846%{opacity:0.3}41.538%{opacity:1}44.615%{opacity:1}100%{opacity:1}}
+.chip-pulse{animation:chip-pulse 13.0s linear infinite both}
+@keyframes s1{0%{opacity:0.45}20.769%{opacity:0.45}22.308%{opacity:1}100%{opacity:1}}
+.s1{animation:s1 13.0s linear infinite both}
+@keyframes s1-idle{0%{opacity:1}20.769%{opacity:1}21.923%{opacity:0}100%{opacity:0}}
+.s1-idle{animation:s1-idle 13.0s linear infinite both}
+@keyframes s1-run{0%{opacity:0}20.769%{opacity:0}21.692%{opacity:1}24.462%{opacity:1}25.385%{opacity:0}100%{opacity:0}}
+.s1-run{animation:s1-run 13.0s linear infinite both}
+@keyframes s1-done{0%{opacity:0}25.000%{opacity:0}26.538%{opacity:1}100%{opacity:1}}
+.s1-done{animation:s1-done 13.0s linear infinite both}
+@keyframes s1-done-s{0%{transform:scale(.6)}25.000%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}26.538%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.s1-done-s{animation:s1-done-s 13.0s linear infinite both}
+@keyframes s2{0%{opacity:0.45}25.385%{opacity:0.45}26.923%{opacity:1}100%{opacity:1}}
+.s2{animation:s2 13.0s linear infinite both}
+@keyframes s2-idle{0%{opacity:1}25.385%{opacity:1}26.538%{opacity:0}100%{opacity:0}}
+.s2-idle{animation:s2-idle 13.0s linear infinite both}
+@keyframes s2-run{0%{opacity:0}25.385%{opacity:0}26.308%{opacity:1}29.846%{opacity:1}30.769%{opacity:0}100%{opacity:0}}
+.s2-run{animation:s2-run 13.0s linear infinite both}
+@keyframes s2-done{0%{opacity:0}30.385%{opacity:0}31.923%{opacity:1}100%{opacity:1}}
+.s2-done{animation:s2-done 13.0s linear infinite both}
+@keyframes s2-done-s{0%{transform:scale(.6)}30.385%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}31.923%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.s2-done-s{animation:s2-done-s 13.0s linear infinite both}
+@keyframes s3{0%{opacity:0.45}30.769%{opacity:0.45}32.308%{opacity:1}100%{opacity:1}}
+.s3{animation:s3 13.0s linear infinite both}
+@keyframes s3-idle{0%{opacity:1}30.769%{opacity:1}31.923%{opacity:0}100%{opacity:0}}
+.s3-idle{animation:s3-idle 13.0s linear infinite both}
+@keyframes s3-run{0%{opacity:0}30.769%{opacity:0}31.692%{opacity:1}35.231%{opacity:1}36.154%{opacity:0}100%{opacity:0}}
+.s3-run{animation:s3-run 13.0s linear infinite both}
+@keyframes s3-done{0%{opacity:0}35.769%{opacity:0}37.308%{opacity:1}100%{opacity:1}}
+.s3-done{animation:s3-done 13.0s linear infinite both}
+@keyframes s3-done-s{0%{transform:scale(.6)}35.769%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}37.308%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.s3-done-s{animation:s3-done-s 13.0s linear infinite both}
+@keyframes s4{0%{opacity:0.45}36.154%{opacity:0.45}37.692%{opacity:1}100%{opacity:1}}
+.s4{animation:s4 13.0s linear infinite both}
+@keyframes s4-idle{0%{opacity:1}36.154%{opacity:1}37.308%{opacity:0}100%{opacity:0}}
+.s4-idle{animation:s4-idle 13.0s linear infinite both}
+@keyframes s4-run{0%{opacity:0}36.154%{opacity:0}37.077%{opacity:1}42.923%{opacity:1}43.846%{opacity:0}100%{opacity:0}}
+.s4-run{animation:s4-run 13.0s linear infinite both}
+@keyframes s4-done{0%{opacity:0}43.462%{opacity:0}45.000%{opacity:1}100%{opacity:1}}
+.s4-done{animation:s4-done 13.0s linear infinite both}
+@keyframes s4-done-s{0%{transform:scale(.6)}43.462%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}45.000%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.s4-done-s{animation:s4-done-s 13.0s linear infinite both}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin 1s linear infinite}
+@keyframes diff-box{0%{opacity:0}37.308%{opacity:0}38.846%{opacity:1}100%{opacity:1}}
+.diff-box{animation:diff-box 13.0s linear infinite both}
+@keyframes diff-red{0%{opacity:0}38.462%{opacity:0}40.000%{opacity:1}100%{opacity:1}}
+.diff-red{animation:diff-red 13.0s linear infinite both}
+@keyframes diff-green{0%{opacity:0}40.769%{opacity:0}42.308%{opacity:1}100%{opacity:1}}
+.diff-green{animation:diff-green 13.0s linear infinite both}
+@keyframes c2-foot{0%{opacity:0}44.615%{opacity:0}46.923%{opacity:1}100%{opacity:1}}
+.c2-foot{animation:c2-foot 13.0s linear infinite both}
+@keyframes pr-body{0%{opacity:0}52.308%{opacity:0}54.615%{opacity:1}100%{opacity:1}}
+.pr-body{animation:pr-body 13.0s linear infinite both}
+@keyframes open{0%{opacity:0}53.077%{opacity:0}55.000%{opacity:1}100%{opacity:1}}
+.open{animation:open 13.0s linear infinite both}
+@keyframes open-s{0%{transform:scale(.6)}53.077%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}55.000%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.open-s{animation:open-s 13.0s linear infinite both}
+@keyframes open-h{0%{opacity:1}71.538%{opacity:1}72.692%{opacity:0}100%{opacity:0}}
+.open-h{animation:open-h 13.0s linear infinite both}
+@keyframes pr-empty{0%{opacity:1}52.308%{opacity:1}54.615%{opacity:0}100%{opacity:0}}
+.pr-empty{animation:pr-empty 13.0s linear infinite both}
+@keyframes merged{0%{opacity:0}71.538%{opacity:0}73.846%{opacity:1}100%{opacity:1}}
+.merged{animation:merged 13.0s linear infinite both}
+@keyframes merged-s{0%{transform:scale(.6)}71.538%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}73.846%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.merged-s{animation:merged-s 13.0s linear infinite both}
+@keyframes pl1{0%{opacity:0}53.846%{opacity:0}55.769%{opacity:1}100%{opacity:1}}
+.pl1{animation:pl1 13.0s linear infinite both}
+@keyframes pl2{0%{opacity:0}55.385%{opacity:0}57.308%{opacity:1}100%{opacity:1}}
+.pl2{animation:pl2 13.0s linear infinite both}
+@keyframes pl3{0%{opacity:0}56.923%{opacity:0}58.846%{opacity:1}100%{opacity:1}}
+.pl3{animation:pl3 13.0s linear infinite both}
+@keyframes pl4{0%{opacity:0}58.462%{opacity:0}60.385%{opacity:1}100%{opacity:1}}
+.pl4{animation:pl4 13.0s linear infinite both}
+@keyframes pl5{0%{opacity:0}60.000%{opacity:0}61.923%{opacity:1}100%{opacity:1}}
+.pl5{animation:pl5 13.0s linear infinite both}
+@keyframes pl6{0%{opacity:0}61.538%{opacity:0}63.462%{opacity:1}100%{opacity:1}}
+.pl6{animation:pl6 13.0s linear infinite both}
+@keyframes notes{0%{opacity:0}63.846%{opacity:0}66.154%{opacity:1}100%{opacity:1}}
+.notes{animation:notes 13.0s linear infinite both}
+@keyframes sync{0%{transform:rotate(0deg)}80.000%{transform:rotate(0deg);animation-timing-function:cubic-bezier(.4,0,.2,1)}89.231%{transform:rotate(720deg);animation-timing-function:cubic-bezier(.4,0,.2,1)}100%{transform:rotate(720deg)}}
+.sync{animation:sync 13.0s linear infinite both}
+@keyframes sync-c{0%{stroke:#8b949e}80.000%{stroke:#8b949e}80.769%{stroke:#58a6ff}89.231%{stroke:#58a6ff}90.769%{stroke:#3fb950}100%{stroke:#3fb950}}
+.sync-c{animation:sync-c 13.0s linear infinite both}
+@keyframes pod1{0%{opacity:0}83.077%{opacity:0}85.000%{opacity:1}100%{opacity:1}}
+.pod1{animation:pod1 13.0s linear infinite both}
+@keyframes pod1-s{0%{transform:scale(.6)}83.077%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}85.000%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.pod1-s{animation:pod1-s 13.0s linear infinite both}
+@keyframes pod2{0%{opacity:0}84.615%{opacity:0}86.538%{opacity:1}100%{opacity:1}}
+.pod2{animation:pod2 13.0s linear infinite both}
+@keyframes pod2-s{0%{transform:scale(.6)}84.615%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}86.538%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.pod2-s{animation:pod2-s 13.0s linear infinite both}
+@keyframes pod3{0%{opacity:0}86.154%{opacity:0}88.077%{opacity:1}100%{opacity:1}}
+.pod3{animation:pod3 13.0s linear infinite both}
+@keyframes pod3-s{0%{transform:scale(.6)}86.154%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}88.077%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.pod3-s{animation:pod3-s 13.0s linear infinite both}
+@keyframes pod4{0%{opacity:0}87.692%{opacity:0}89.615%{opacity:1}100%{opacity:1}}
+.pod4{animation:pod4 13.0s linear infinite both}
+@keyframes pod4-s{0%{transform:scale(.6)}87.692%{transform:scale(.6);animation-timing-function:cubic-bezier(.2,.7,.2,1)}89.615%{transform:scale(1);animation-timing-function:cubic-bezier(.2,.7,.2,1)}100%{transform:scale(1)}}
+.pod4-s{animation:pod4-s 13.0s linear infinite both}
+@keyframes ver-old{0%{opacity:1}87.692%{opacity:1}89.231%{opacity:0}100%{opacity:0}}
+.ver-old{animation:ver-old 13.0s linear infinite both}
+@keyframes ver-new{0%{opacity:0}87.692%{opacity:0}89.615%{opacity:1}100%{opacity:1}}
+.ver-new{animation:ver-new 13.0s linear infinite both}
+@keyframes healthy{0%{opacity:0}90.000%{opacity:0}92.308%{opacity:1}100%{opacity:1}}
+.healthy{animation:healthy 13.0s linear infinite both}
+@media (prefers-reduced-motion: reduce){*{animation:none !important}}
+]]></style>
+<rect x="0.5" y="0.5" width="1199" height="599" rx="12" fill="#0d1117" stroke="#30363d"/>
+<text x="36" y="50" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#e6edf3" text-anchor="start">From a release to a merged GitOps pull request</text>
+<text x="1164" y="50" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="13" font-weight="400" fill="#8b949e" text-anchor="end">gitops-pr-automator</text>
+<rect x="48" y="72" width="168" height="372" rx="8" fill="#161b22" stroke="#30363d" opacity=".45"/>
+<rect x="42" y="78" width="174" height="372" rx="8" fill="#161b22" stroke="#30363d" opacity=".7"/>
+<rect x="36" y="84" width="180" height="372" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1" class="c1" filter="url(#shadow)"/><text x="52" y="108" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">App repositories</text><text x="52" y="128" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#e6edf3" text-anchor="start">acme/backend</text><line x1="36" y1="144" x2="216" y2="144" stroke="#30363d"/>
+<line x1="64" y1="188" x2="64" y2="330" stroke="#30363d" stroke-width="2"/>
+<circle cx="64" cy="318" r="5" fill="#161b22" stroke="#8b949e" stroke-width="2"/>
+<text x="80" y="322" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">a260322</text>
+<circle cx="64" cy="262" r="5" fill="#161b22" stroke="#8b949e" stroke-width="2"/>
+<text x="80" y="266" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">3ed71fd</text>
+<rect x="140" y="252" width="54" height="20" rx="10" fill="none" stroke="#484f58"/>
+<text x="167" y="266" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="600" fill="#8b949e" text-anchor="middle">v1.4.2</text>
+<g class="ring-o" opacity="0"><g class="ring" style="transform-box:fill-box;transform-origin:center"><circle cx="64" cy="206" r="7" fill="none" stroke="#3fb950" stroke-width="1.5"/></g></g>
+<g class="rel"><g class="rel-s" style="transform-box:fill-box;transform-origin:center"><circle cx="64" cy="206" r="6" fill="#3fb950" stroke="#161b22" stroke-width="2"/><text x="80" y="210" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="600" fill="#e6edf3" text-anchor="start">1cc6a83</text></g></g>
+<g class="tag"><g class="tag-s" style="transform-box:fill-box;transform-origin:center"><rect x="140" y="196" width="54" height="20" rx="10.0" fill="#238636"/><text x="167.0" y="209.96" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#ffffff" text-anchor="middle">v1.5.0</text><text x="80" y="232" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#3fb950" text-anchor="start">new release</text></g></g>
+<line x1="36" y1="356" x2="216" y2="356" stroke="#30363d"/>
+<path d="M54 377l9 5.5-9 5.5z" fill="#8b949e"/>
+<text x="70" y="387" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e6edf3" text-anchor="start">Release workflow</text>
+<g class="dispatch"><text x="54" y="410" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">triggers the GitOps repo:</text><text x="54" y="428" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="600" fill="#58a6ff" text-anchor="start">workflow_dispatch</text></g>
+<circle cx="48" cy="505" r="11" fill="#30363d" class="c1-cap"/><text x="48" y="509.5" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">1</text><g class="c1-capt"><text x="68" y="510" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">A release lands in an</text><text x="68" y="528" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">app repository</text></g>
+<line x1="219" y1="270" x2="279" y2="270" stroke="#30363d" stroke-width="2"/><line x1="219" y1="270" x2="279" y2="270" stroke="#58a6ff" stroke-width="2" stroke-dasharray="60" class="a1-line"/><path d="M278 270l-7 -5v10z" fill="#30363d"/><path d="M278 270l-7 -5v10z" fill="#58a6ff" class="a1-head"/><g class="a1-dot-o"><g class="a1-dot"><circle cx="219" cy="270" r="7" fill="#58a6ff" opacity=".3"/><circle cx="219" cy="270" r="3.5" fill="#ffffff"/></g></g><text x="249.0" y="256" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="middle">trigger</text>
+<rect x="282" y="84" width="280" height="372" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1" class="c2" filter="url(#shadow)"/><text x="298" y="108" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">GitOps config repository</text><text x="298" y="128" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#e6edf3" text-anchor="start">acme/gitops-config</text><line x1="282" y1="144" x2="562" y2="144" stroke="#30363d"/>
+<text x="298" y="166" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">Workflow run</text>
+<rect x="380" y="152" width="152" height="20" rx="10" fill="#0d1117" stroke="#30363d"/>
+<g class="chip-pulse"><circle cx="392" cy="162" r="4" fill="#484f58" class="chip"/></g>
+<text x="402" y="166" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#e6edf3" text-anchor="start">gitops-pr-automator</text>
+<g class="s1"><text x="326" y="208" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e6edf3" text-anchor="start">Read the config</text><text x="326" y="225" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">.github/gitops/*.config.yaml</text></g><circle cx="306" cy="203" r="7" fill="none" stroke="#484f58" stroke-width="1.5" class="s1-idle"/><g class="s1-run"><g class="spin" style="transform-box:fill-box;transform-origin:center"><circle cx="306" cy="203" r="7" fill="none" stroke="#d29922" stroke-width="2" stroke-dasharray="26 18" stroke-linecap="round"/></g></g><g class="s1-done"><g class="s1-done-s" style="transform-box:fill-box;transform-origin:center"><circle cx="306" cy="203" r="8" fill="#3fb950"/><path d="M302.5 203l2.5 2.5 4.5-5" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+<g class="s2"><text x="326" y="257" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e6edf3" text-anchor="start">Resolve the new version</text><text x="326" y="274" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">heads/master → 1cc6a83</text></g><circle cx="306" cy="252" r="7" fill="none" stroke="#484f58" stroke-width="1.5" class="s2-idle"/><g class="s2-run"><g class="spin" style="transform-box:fill-box;transform-origin:center"><circle cx="306" cy="252" r="7" fill="none" stroke="#d29922" stroke-width="2" stroke-dasharray="26 18" stroke-linecap="round"/></g></g><g class="s2-done"><g class="s2-done-s" style="transform-box:fill-box;transform-origin:center"><circle cx="306" cy="252" r="8" fill="#3fb950"/><path d="M302.5 252l2.5 2.5 4.5-5" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+<g class="s3"><text x="326" y="306" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e6edf3" text-anchor="start">Find versions in release files</text><text x="326" y="323" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">**/*.values.yaml, by regex</text></g><circle cx="306" cy="301" r="7" fill="none" stroke="#484f58" stroke-width="1.5" class="s3-idle"/><g class="s3-run"><g class="spin" style="transform-box:fill-box;transform-origin:center"><circle cx="306" cy="301" r="7" fill="none" stroke="#d29922" stroke-width="2" stroke-dasharray="26 18" stroke-linecap="round"/></g></g><g class="s3-done"><g class="s3-done-s" style="transform-box:fill-box;transform-origin:center"><circle cx="306" cy="301" r="8" fill="#3fb950"/><path d="M302.5 301l2.5 2.5 4.5-5" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+<g class="s4"><text x="326" y="355" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e6edf3" text-anchor="start">Update what changed</text><text x="326" y="372" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start"></text></g><circle cx="306" cy="350" r="7" fill="none" stroke="#484f58" stroke-width="1.5" class="s4-idle"/><g class="s4-run"><g class="spin" style="transform-box:fill-box;transform-origin:center"><circle cx="306" cy="350" r="7" fill="none" stroke="#d29922" stroke-width="2" stroke-dasharray="26 18" stroke-linecap="round"/></g></g><g class="s4-done"><g class="s4-done-s" style="transform-box:fill-box;transform-origin:center"><circle cx="306" cy="350" r="8" fill="#3fb950"/><path d="M302.5 350l2.5 2.5 4.5-5" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+<g class="diff-box"><rect x="326" y="360" width="220" height="48" rx="6" fill="#0d1117" stroke="#30363d"/></g>
+<g class="diff-red"><rect x="327" y="361" width="218" height="22" fill="#f85149" opacity=".12"/><text x="336" y="377" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#f85149" text-anchor="start">-  tag: 3ed71fdfc…</text></g>
+<g class="diff-green"><rect x="327" y="384" width="218" height="23" fill="#3fb950" opacity=".12"/><text x="336" y="400" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#3fb950" text-anchor="start">+  tag: 1cc6a839e…</text></g>
+<g class="c2-foot"><text x="298" y="436" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#e6edf3" text-anchor="start">2 files changed</text><text x="400" y="436" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">committed to a branch</text></g>
+<circle cx="294" cy="505" r="11" fill="#30363d" class="c2-cap"/><text x="294" y="509.5" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">2</text><g class="c2-capt"><text x="314" y="510" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">The action finds the new version</text><text x="314" y="528" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">and updates the release files</text></g>
+<line x1="565" y1="270" x2="625" y2="270" stroke="#30363d" stroke-width="2"/><line x1="565" y1="270" x2="625" y2="270" stroke="#58a6ff" stroke-width="2" stroke-dasharray="60" class="a2-line"/><path d="M624 270l-7 -5v10z" fill="#30363d"/><path d="M624 270l-7 -5v10z" fill="#58a6ff" class="a2-head"/><g class="a2-dot-o"><g class="a2-dot"><circle cx="565" cy="270" r="7" fill="#58a6ff" opacity=".3"/><circle cx="565" cy="270" r="3.5" fill="#ffffff"/></g></g><text x="595.0" y="256" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="middle">commit</text>
+<rect x="628" y="84" width="300" height="372" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1" class="c3" filter="url(#shadow)"/>
+<g class="pr-empty" opacity="0"><rect x="638" y="94" width="280" height="352" rx="6" fill="none" stroke="#30363d" stroke-dasharray="5 5"/><g fill="none" stroke="#484f58" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" transform="translate(747.0 125) scale(1.4)"><circle cx="22" cy="103" r="3.2"/><circle cx="22" cy="125" r="3.2"/><circle cx="40" cy="125" r="3.2"/><path d="M22 106.5v15M40 121.5v-9a4 4 0 0 0-4-4h-5m2.5-3l-3 3 3 3"/></g><text x="778.0" y="318" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#8b949e" text-anchor="middle">No open pull request yet</text></g>
+<g class="pr-body">
+<g fill="none" stroke="#8b949e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="650" cy="103" r="3.2"/><circle cx="650" cy="125" r="3.2"/><circle cx="668" cy="125" r="3.2"/><path d="M650 106.5v15M668 121.5v-9a4 4 0 0 0-4-4h-5m2.5-3l-3 3 3 3"/></g>
+<text x="678" y="110" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#e6edf3" text-anchor="start">GitOps automated release</text>
+<text x="678" y="129" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#8b949e" text-anchor="start">main ← backend-2026-11-08T10-15-00Z</text>
+<line x1="628" y1="144" x2="928" y2="144" stroke="#30363d"/>
+<g class="open-h" opacity="0"><g class="open"><g class="open-s" style="transform-box:fill-box;transform-origin:center"><rect x="644" y="156" width="62" height="22" rx="11.0" fill="#238636"/><text x="675.0" y="171.32" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle">Open</text></g></g></g>
+<g class="merged"><g class="merged-s" style="transform-box:fill-box;transform-origin:center"><rect x="644" y="156" width="78" height="22" rx="11.0" fill="#8957e5"/><text x="683.0" y="171.32" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle">Merged</text></g></g>
+<rect x="732" y="157" width="58" height="20" rx="10" fill="none" stroke="#1f6feb"/><text x="761" y="171" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#58a6ff" text-anchor="middle">gitops</text>
+<text x="912" y="171" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#8b949e" text-anchor="end">auto-merge: squash</text>
+<g class="pl1"><text x="644" y="204" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">Updated to:</text><rect x="720" y="190" width="79" height="19" rx="4" fill="#0d1117" stroke="#30363d"/><text x="726" y="204" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#58a6ff" text-anchor="start">1cc6a839e</text></g>
+<g class="pl2"><rect x="644" y="222" width="268" height="22" fill="#0d1117" stroke="#30363d"/><rect x="644" y="244" width="268" height="46" fill="none" stroke="#30363d"/><line x1="644" y1="267" x2="912" y2="267" stroke="#30363d"/><line x1="724" y1="222" x2="724" y2="290" stroke="#30363d"/><text x="684" y="237" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#e6edf3" text-anchor="middle">Version</text><text x="820" y="237" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#e6edf3" text-anchor="middle">Files</text><text x="652" y="260" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#58a6ff" text-anchor="start">3ed71fdfc</text><text x="732" y="260" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">apps/backend.values.yaml</text><text x="652" y="283" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#58a6ff" text-anchor="start">a260322a2</text><text x="732" y="283" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">apps/canary.values.yaml</text></g>
+<g class="pl3"><text x="644" y="313" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e6edf3" text-anchor="start">Changes:</text></g>
+<g class="pl4"><circle cx="650" cy="331" r="2" fill="#8b949e"/><rect x="660" y="321" width="64" height="19" rx="4" fill="#0d1117" stroke="#30363d"/><text x="666" y="335" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#58a6ff" text-anchor="start">09d2266</text><text x="730" y="335" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#e6edf3" text-anchor="start">Add retries to the queue</text></g>
+<g class="pl5"><circle cx="650" cy="355" r="2" fill="#8b949e"/><rect x="660" y="345" width="64" height="19" rx="4" fill="#0d1117" stroke="#30363d"/><text x="666" y="359" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#58a6ff" text-anchor="start">e5a853b</text><text x="730" y="359" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#e6edf3" text-anchor="start">Fix the health check path</text></g>
+<g class="pl6"><circle cx="650" cy="379" r="2" fill="#8b949e"/><rect x="660" y="369" width="64" height="19" rx="4" fill="#0d1117" stroke="#30363d"/><text x="666" y="383" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#58a6ff" text-anchor="start">c41ab90</text><text x="730" y="383" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#e6edf3" text-anchor="start">Bump the base image</text></g>
+<line x1="628" y1="400" x2="928" y2="400" stroke="#30363d"/>
+<g class="notes"><text x="644" y="421" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">Later runs update this PR, or open a new one.</text><text x="644" y="440" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">Options: auto-merge, close the older PRs.</text></g>
+</g>
+<circle cx="640" cy="505" r="11" fill="#30363d" class="c3-cap"/><text x="640" y="509.5" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">3</text><g class="c3-capt"><text x="660" y="510" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">It opens a pull request, or</text><text x="660" y="528" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">updates the one already open</text></g>
+<line x1="931" y1="270" x2="991" y2="270" stroke="#30363d" stroke-width="2"/><line x1="931" y1="270" x2="991" y2="270" stroke="#58a6ff" stroke-width="2" stroke-dasharray="60" class="a3-line"/><path d="M990 270l-7 -5v10z" fill="#30363d"/><path d="M990 270l-7 -5v10z" fill="#58a6ff" class="a3-head"/><g class="a3-dot-o"><g class="a3-dot"><circle cx="931" cy="270" r="7" fill="#58a6ff" opacity=".3"/><circle cx="931" cy="270" r="3.5" fill="#ffffff"/></g></g><text x="961.0" y="256" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#8b949e" text-anchor="middle">merge</text>
+<rect x="994" y="84" width="170" height="372" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1" class="c4" filter="url(#shadow)"/><text x="1010" y="108" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#8b949e" text-anchor="start">Cluster</text><text x="1010" y="128" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#e6edf3" text-anchor="start">Argo CD or Flux</text><line x1="994" y1="144" x2="1164" y2="144" stroke="#30363d"/>
+<g class="sync-c" fill="none" stroke="#8b949e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g class="sync" style="transform-box:fill-box;transform-origin:center"><path d="M1066.0 181a14 14 0 0 1 24-7.5m2.5-6.5v7h-7M1092.0 185a14 14 0 0 1-24 7.5m-2.5 6.5v-7h7"/></g></g>
+<text x="1079.0" y="220" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#8b949e" text-anchor="middle">reconciles</text>
+<rect x="1037.0" y="246" width="36" height="36" rx="8" fill="#0d1117" stroke="#484f58" stroke-width="1.5"/>
+<g class="pod1"><g class="pod1-s" style="transform-box:fill-box;transform-origin:center"><rect x="1037.0" y="246" width="36" height="36" rx="8" fill="#238636" stroke="#3fb950" stroke-width="1.5"/><path d="M1048.0 264l5 5 9-10" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+<rect x="1085.0" y="246" width="36" height="36" rx="8" fill="#0d1117" stroke="#484f58" stroke-width="1.5"/>
+<g class="pod2"><g class="pod2-s" style="transform-box:fill-box;transform-origin:center"><rect x="1085.0" y="246" width="36" height="36" rx="8" fill="#238636" stroke="#3fb950" stroke-width="1.5"/><path d="M1096.0 264l5 5 9-10" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+<rect x="1037.0" y="294" width="36" height="36" rx="8" fill="#0d1117" stroke="#484f58" stroke-width="1.5"/>
+<g class="pod3"><g class="pod3-s" style="transform-box:fill-box;transform-origin:center"><rect x="1037.0" y="294" width="36" height="36" rx="8" fill="#238636" stroke="#3fb950" stroke-width="1.5"/><path d="M1048.0 312l5 5 9-10" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+<rect x="1085.0" y="294" width="36" height="36" rx="8" fill="#0d1117" stroke="#484f58" stroke-width="1.5"/>
+<g class="pod4"><g class="pod4-s" style="transform-box:fill-box;transform-origin:center"><rect x="1085.0" y="294" width="36" height="36" rx="8" fill="#238636" stroke="#3fb950" stroke-width="1.5"/><path d="M1096.0 312l5 5 9-10" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></g>
+<g class="ver-old" opacity="0"><text x="1079.0" y="358" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="13" font-weight="400" fill="#8b949e" text-anchor="middle">running v1.4.2</text></g>
+<g class="ver-new"><text x="1079.0" y="358" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#e6edf3" text-anchor="middle">running v1.5.0</text></g>
+<line x1="994" y1="384" x2="1164" y2="384" stroke="#30363d"/>
+<g class="healthy"><circle cx="1018" cy="418" r="8" fill="#3fb950"/><path d="M1014.5 418l2.5 2.5 4.5-5" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="1034" y="423" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#3fb950" text-anchor="start">Synced, healthy</text></g>
+<circle cx="1006" cy="505" r="11" fill="#30363d" class="c4-cap"/><text x="1006" y="509.5" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">4</text><g class="c4-capt"><text x="1026" y="510" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">Merged, and the</text><text x="1026" y="528" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">reconciler deploys</text></g>
+</svg>
