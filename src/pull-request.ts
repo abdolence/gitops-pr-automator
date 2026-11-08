@@ -433,11 +433,6 @@ async function generatePrSummaryText(
 
 const FULL_COMMIT_SHA = /^([0-9a-f]{40}|[0-9a-f]{64})$/i
 
-/**
- * A table cell for a version. A full commit SHA is shortened, a tag or any
- * other version is kept whole, and the cell links to the commit when it is
- * known.
- */
 function versionCell(
   version: string,
   sha: string | undefined,

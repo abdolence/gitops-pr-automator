@@ -206,7 +206,7 @@ describe('createPullRequest', () => {
     expect(calls.createdBodies[0]).toContain(sha.slice(0, 8))
   })
 
-  it('prints the whole version when there is no SHA to link and shortens only SHAs', async () => {
+  it('shortens only full commit SHAs and keeps a tag whole, linked or not', async () => {
     const { octokit, calls } = fakeOctokit([], [])
     const sha = 'abcdef01'.repeat(5)
     const newSha = '01234567'.repeat(5)
@@ -228,6 +228,13 @@ describe('createPullRequest', () => {
               file: fileOf('apps/tagged.yaml')
             },
             {
+              existingVersion: 'v10.11.11',
+              existingVersionSha: sha,
+              newVersion: 'v10.11.12',
+              newVersionSha: newSha,
+              file: fileOf('apps/linked-tag.yaml')
+            },
+            {
               existingVersion: sha,
               existingVersionSha: sha,
               newVersion: newSha,
@@ -245,6 +252,11 @@ describe('createPullRequest', () => {
     const taggedRow = body.split('\n').find(line => line.includes('tagged'))
     expect(taggedRow).toContain('v10.11.11')
     expect(taggedRow).toContain('v10.11.12')
+    const linkedTagRow = body
+      .split('\n')
+      .find(line => line.includes('linked-tag'))
+    expect(linkedTagRow).toContain('[`v10.11.11`](')
+    expect(linkedTagRow).toContain('[`v10.11.12`](')
     expect(body).toContain(`[\`${sha.slice(0, 8)}\`]`)
     expect(body).not.toContain(`[\`${sha}\`]`)
   })
