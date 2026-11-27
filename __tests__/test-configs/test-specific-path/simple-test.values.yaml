@@ -1,5 +1,5 @@
 someKey: someValue
 image:
   repository: some-repo
-  version: 433f20b544d4690e697464120f3e26fb0801eab0 # github-sha: 433f20b544d4690e697464120f3e26fb0801eab0
+  version: v1.3.0 # github-sha: ef1250f9f2ab89ff8f9ce97e05c7ec8a1d29f32e
   otherKey: otherValue
